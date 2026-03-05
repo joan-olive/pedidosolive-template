@@ -1,0 +1,273 @@
+---
+const { className = "" } = Astro.props;
+
+let success = false;
+let errorMessage = "";
+let fieldErrors = {
+    email: false,
+    password: false,
+    name: false,
+    surname: false,
+};
+
+let formValues = {
+    email: "",
+    password: "",
+    name: "",
+    surname: "",
+    second_surname: "",
+};
+---
+
+<div class={`${className} pb-10`}>
+    {/* SUCCESS */}
+    <div
+        id="success-msg"
+        class="mb-6 text-green-600 hidden justify-center items-center flex-row gap-2 text-center"
+    >
+        <i class="icon-[teenyicons--tick-circle-outline]"></i>
+        <span> Usuario creado correctamente </span>
+    </div>
+
+    {/* ERROR */}
+    <div
+        id="error-msg"
+        class="w-full hidden md:max-w-2xl mx-auto flex-row justify-start items-center pt-2 pb-6 animate-fade-in"
+    >
+        <div class="bg-red-500/20 flex-1 h-px"></div>
+        <span
+            class="text-red-500 text-sm flex flex-col md:flex-row justify-start items-center gap-1 px-3"
+        >
+            <i class="icon-[pajamas--error] px-2"></i>
+            <span id="error-text"></span>
+        </span>
+        <div class="bg-red-500/20 flex-1 h-px"></div>
+    </div>
+
+    {/* FORM */}
+    <div class="w-full flex justify-center items-center">
+        <span class="font-bold text-black/65 uppercase text-2xl pt-3 pb-1">
+            Datos del nuevo usuario
+        </span>
+    </div>
+
+    <form
+        id="add-user-form"
+        class="bg-white px-4 md:px-6 py-6 rounded-xl shadow space-y-4 w-full md:max-w-2xl mx-auto"
+    >
+        <div class="w-full flex flex-col justify-center items-start">
+            <span class="text-black/60 text-sm">
+                Los campos con <span class="text-red-500"> * </span> son <b>obligatorios</b>.
+            </span>
+        </div>
+
+        <div class="w-full flex justify-start items-center">
+            <div class="w-full max-w-10 bg-black/25 h-px rounded-full animate-width"></div>
+        </div>
+
+        <div>
+            <label>
+                Email
+                <span class="text-red-500"> * </span>
+            </label>
+            <input
+                type="email"
+                name="email"
+                placeholder="Correo electrónico"
+                value={formValues.email}
+                class={`form-input ${fieldErrors.email ? "border-red-500" : ""}`}
+            />
+        </div>
+
+        <div>
+            <label>
+                Contraseña
+                <span class="text-red-500"> * </span>
+            </label>
+            <div class="relative group">
+                <input
+                    type="password"
+                    name="password"
+                    placeholder="Contraseña"
+                    class={`form-input pr-13! ${fieldErrors.password ? "border-red-500" : ""}`}
+                />
+                <button type="button" class="eye absolute top-1/2 -translate-y-1/2 right-2 rounded-full hover:bg-gray-200 text-lg p-2 flex justify-center items-center transition-all">
+                    <i class="icon-[iconamoon--eye]" />
+                </button>
+            </div>
+        </div>
+
+        <div>
+            <label>
+                Confirma la contraseña
+                <span class="text-red-500"> * </span>
+            </label>
+            <div class="relative">
+                <input
+                    type="password"
+                    name="password_confirmation"
+                    placeholder="Confirma la contraseña"
+                    class={`form-input pr-13! ${fieldErrors.password ? "border-red-500" : ""}`}
+                />
+                <button type="button" class="eye absolute top-1/2 -translate-y-1/2 right-2 rounded-full hover:bg-gray-200 text-lg p-2 flex justify-center items-center transition-all">
+                    <i class="icon-[iconamoon--eye]" />
+                </button>
+            </div>
+        </div>
+
+        <div class="w-full flex flex-col md:flex-row gap-2">
+            <div class="flex-1">
+                <label>
+                    Nombre
+                    <span class="text-red-500"> * </span>
+                </label>
+                <input
+                    type="text"
+                    name="name"
+                    placeholder="Nombre"
+                    value={formValues.name}
+                    class={`form-input ${fieldErrors.name ? "border-red-500" : ""}`}
+                />
+            </div>
+
+            <div class="flex-1">
+                <label>
+                    Apellido
+                    <span class="text-red-500"> * </span>
+                </label>
+                <input
+                    type="text"
+                    name="surname"
+                    placeholder="Primer apellido"
+                    value={formValues.surname}
+                    class={`form-input ${fieldErrors.surname ? "border-red-500" : ""}`}
+                />
+            </div>
+        </div>
+
+        <div>
+            <label>Segundo apellido</label>
+            <input
+                type="text"
+                name="second_surname"
+                placeholder="Segundo apellido"
+                value={formValues.second_surname}
+                class="form-input"
+            />
+        </div>
+
+        <div class="w-full flex flex-col justify-center items-start pt-5 pb-2">
+            <span class="text-sm text-blue-900/70 italic">
+                Tienes problemas para crear un usuario? <b>Contacta con la empresa</b> para resolver lo.
+            </span>
+        </div>
+
+        <button
+            type="submit"
+            class="w-full bg-[#013485] text-white py-3 cursor-pointer hover:-translate-y-0.5 transition-all hover:bg-[#012b6d] rounded-lg"
+        >
+            Crear usuario
+        </button>
+    </form>
+</div>
+
+<script is:inline>
+    document.addEventListener("astro:page-load", () => {
+        const form = document.getElementById("add-user-form");
+        const submitBtn = form?.querySelector("button[type='submit']");
+        const successMsg = document.getElementById("success-msg");
+        const eyes = document.querySelectorAll('.eye');
+        let isSubmitting = false;
+
+        eyes.forEach(eye => {
+            eye.addEventListener('click', () => {
+                const input = eye.previousElementSibling;
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    eye.innerHTML = '<i class="icon-[quill--eye-closed]" />';
+                } else {
+                    input.type = 'password';
+                    eye.innerHTML = '<i class="icon-[iconamoon--eye]" />';
+                }
+            });
+        });
+
+        if (!form || !submitBtn) return;
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (isSubmitting) return;
+
+            isSubmitting = true;
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Creando usuario...";
+
+            const formData = new FormData(form);
+
+            const res = await fetch("/api/agregar-usuario", {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                const errorMsg = document.getElementById("error-msg");
+                const errorTextSpan = document.getElementById("error-text");
+                errorTextSpan.textContent = errorText || "Error al crear el usuario.";
+                errorMsg.classList.remove("hidden");
+                errorMsg.classList.add("flex", "animate-zoom-in");
+                isSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Crear usuario";
+                window.scrollTo({ top: 0, behavior: "smooth",});
+
+                return;
+            }
+
+            if(res.ok) {
+                const errorMsg = document.getElementById("error-msg");
+                const errorTextSpan = document.getElementById("error-text");
+                errorTextSpan.textContent = "";
+                errorMsg.classList.remove("flex", "animate-zoom-in");
+                errorMsg.classList.add("hidden");
+
+                successMsg.classList.remove("hidden");
+                successMsg.classList.add("flex", "animate-zoom-in");
+
+                const inputs = form.querySelectorAll('input[type="text"], input[type="email"], input[type="password"]');
+                inputs.forEach(input => input.value = '');
+
+                // RESET
+                isSubmitting = false;
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Crear usuario";
+                window.scrollTo({ top: 0, behavior: "smooth",});
+            }
+        });
+    });
+</script>
+
+<style>
+    .form-label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem 0.875rem;
+        border-radius: 0.5rem;
+        border: 1px solid #d1d5db;
+        font-size: 0.95rem;
+        transition: all 0.15s ease;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #013485;
+        box-shadow: 0 0 0 2px rgba(1, 52, 133, 0.15);
+    }
+</style>

@@ -1,0 +1,26 @@
+{
+  "name": "pedidosolive",
+  "type": "module",
+  "version": "0.0.1",
+  
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/vercel": "^9.0.2",
+    "@midudev/tailwind-animations": "^0.2.0",
+    "@supabase/ssr": "^0.8.0",
+    "@tailwindcss/vite": "^4.1.18",
+    "aos": "^2.3.4",
+    "astro": "^5.16.6",
+    "swiper": "^12.0.3",
+    "tailwindcss": "^4.1.18"
+  },
+  "devDependencies": {
+    "@iconify/json": "^2.2.422",
+    "@iconify/tailwind4": "^1.2.0"
+  }
+}

@@ -1,0 +1,451 @@
+---
+import { getSupabaseServerClient } from "../lib/supabase";
+
+const { className = "" } = Astro.props;
+
+const user = Astro.locals.user;
+
+let success = false;
+let errorMessage = "";
+let fieldErrors = {
+    company_name: false,
+    order_details: false,
+    scheduled_for: false,
+};
+let formValues = {
+    company_name: "",
+    order_details: "",
+    scheduled_for: "",
+};
+
+if (Astro.request.method === "POST") {
+    const supabase = getSupabaseServerClient(Astro);
+    const formData = await Astro.request.formData();
+
+    const company_name = formData.get("company_name")?.toString().trim() ?? "";
+    const order_details =
+        formData.get("order_details")?.toString().trim() ?? "";
+    const scheduled_for = formData.get("scheduled_for")?.toString().trim() ?? "";
+    const box_volume = formData.get("box_volume")?.toString().trim() || null;
+
+    const company_type =
+        formData.get("company_type")?.toString().trim() || null;
+
+    if (!company_name) fieldErrors.company_name = true;
+    if (!order_details) fieldErrors.order_details = true;
+    if (!scheduled_for) fieldErrors.scheduled_for = true;
+
+    formValues = {
+        company_name,
+        order_details,
+        scheduled_for,
+    };
+
+    const errorCount = Object.values(fieldErrors).filter(Boolean).length;
+
+    if (!errorMessage) {
+        if (errorCount === Object.keys(fieldErrors).length) {
+            errorMessage = "Todos los campos son obligatorios";
+        } else if (errorCount > 0) {
+            errorMessage = "Hay campos obligatorios sin rellenar";
+        }
+    }
+
+    if (!errorMessage) {
+        const { error } = await supabase.from("orders").insert([
+            {
+                created_at: new Date().toISOString(),
+                scheduled_for,
+                company_name,
+                order_details,
+                contact_name: null,
+                contact_surname: null,
+                contact_email: null,
+                contact_phone: null,
+                office_order_id: user?.id,
+                isClient: false,
+                stage: "PENDING",
+                box_volume: box_volume ? Number(box_volume) : null,
+                company_type: company_type || null,
+            },
+        ]);
+
+        if (!error) {
+            success = true;
+            formValues = {
+                company_name: "",
+                order_details: "",
+                scheduled_for: "",
+            };
+        }
+    }
+}
+---
+
+<div class={`${className}`}>
+    {
+        success && (
+            <div class="w-full flex justify-center items-center">
+                <div class="rounded-lg p-6 flex flex-col justify-center items-center gap-4 animate-fade-in">
+                    <i class="icon-[pajamas--check-circle] text-green-500 text-4xl" />
+                    <h3 class="text-green-700 text-lg font-medium">
+                        ¡Servicio registrado con éxito!
+                    </h3>
+                    <p class="text-green-700/60 text-center max-w-md">
+                        El pedido ha sido registrado correctamente.
+                    </p>
+                </div>
+            </div>
+        )
+    }
+
+    {
+        errorMessage && (
+            <div class="w-full flex flex-row justify-start items-center pt-2 pb-6 animate-fade-in">
+                <div class="bg-red-500/20 flex-1 h-px" />
+                <span class="text-red-500 text-sm flex justify-start items-center gap-1 px-3">
+                    <i class="icon-[pajamas--error]" />
+                    {errorMessage}
+                </span>
+                <div class="bg-red-500/20 flex-1 h-px" />
+            </div>
+        )
+    }
+
+    <form class="w-full flex flex-col" method="POST" id="add-order-form">
+        <input type="hidden" name="form_started_at" value={Date.now()} />
+        <input
+            type="text"
+            name="company_website"
+            tabindex="-1"
+            autocomplete="off"
+            class="hidden"
+        />
+
+        <div class="w-full flex justify-end items-center pb-10">
+            <span class="text-sm text-gray-500 italic">
+                Los campos marcados con
+                <span class="text-red-500">*</span> son
+                <b>obligatorios</b>.
+            </span>
+        </div>
+
+        {/* DATOS DE LA EMPRESA */}
+        <div>
+            <h3
+                class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4"
+            >
+                Datos de la empresa
+            </h3>
+
+            <div class="flex flex-col gap-4">
+                <div class="w-full md:w-xs">
+                    <label class="form-label" for="company_name">
+                        Nombre de la empresa
+                        <span class="text-base text-red-500">*</span>
+                    </label>
+                    <input
+                        type="text"
+                        name="company_name"
+                        class={`form-input ${fieldErrors.company_name ? "border-red-500!" : ""}`}
+                        placeholder="Empresa S.L."
+                        value={formValues.company_name}
+                    />
+                </div>
+            </div>
+        </div>
+
+        {/* DETALLES DEL PEDIDO */}
+        <div>
+            <div class="mt-6">
+                <h3
+                    class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4"
+                >
+                    Detalles del pedido
+                    <span class="text-base text-red-500">*</span>
+                </h3>
+                <textarea
+                    name="order_details"
+                    rows="4"
+                    class={`form-input resize-none ${fieldErrors.order_details ? "border-red-500!" : ""}`}
+                    placeholder="Indica que tipo de servicio está solicitando"
+                    value={formValues.order_details}></textarea>
+            </div>
+        </div>
+
+        {/* INFORMACIÓN ADICIONAL */}
+        <div class="mt-6">
+            <h3
+                class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4"
+            >
+                Información adicional
+            </h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* VOLUMEN DE CAJA */}
+                <div class="relative" id="boxVolumeWrapper">
+                    <label class="form-label">Volumen de caja</label>
+
+                    <input
+                        type="hidden"
+                        name="box_volume"
+                        id="box_volume"
+                        value=""
+                    />
+
+                    <button
+                        type="button"
+                        id="boxVolumeButton"
+                        class="form-input flex justify-between items-center cursor-pointer"
+                    >
+                        <span id="boxVolumeLabel">Sin especificar</span>
+                        <i
+                            id="boxVolumeIcon"
+                            class="icon-[mdi--chevron-down] transition-transform duration-200"
+                        ></i>
+                    </button>
+
+                    <div
+                        id="boxVolumeDropdown"
+                        class="absolute left-0 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 scale-95 pointer-events-none transition-all duration-150 z-50"
+                    >
+                        <ul class="py-1 text-sm">
+                            <li
+                                data-value=""
+                                class="px-3 py-2 cursor-pointer hover:bg-gray-100"
+                            >
+                                Sin especificar
+                            </li>
+                            <li
+                                data-value="30"
+                                class="px-3 py-2 cursor-pointer hover:bg-gray-100"
+                            >
+                                30m³
+                            </li>
+                            <li
+                                data-value="45"
+                                class="px-3 py-2 cursor-pointer hover:bg-gray-100"
+                            >
+                                45m³
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                {/* TIPO DE EMPRESA */}
+                <div class="relative" id="companyTypeWrapper">
+                    <label class="form-label">Tipo de empresa</label>
+
+                    <input
+                        type="hidden"
+                        name="company_type"
+                        id="company_type"
+                        value=""
+                    />
+
+                    <button
+                        type="button"
+                        id="companyTypeButton"
+                        class="form-input flex justify-between items-center cursor-pointer"
+                    >
+                        <span id="companyTypeLabel">Sin especificar</span>
+                        <i
+                            id="companyTypeIcon"
+                            class="icon-[mdi--chevron-down] transition-transform duration-200"
+                        ></i>
+                    </button>
+
+                    <div
+                        id="companyTypeDropdown"
+                        class="absolute left-0 mt-2 w-full bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 scale-95 pointer-events-none transition-all duration-150 z-50"
+                    >
+                        <ul class="py-1 text-sm">
+                            <li
+                                data-value=""
+                                class="px-3 py-2 cursor-pointer hover:bg-gray-100"
+                            >
+                                Sin especificar
+                            </li>
+                            <li
+                                data-value="HIPICA"
+                                class="px-3 py-2 cursor-pointer hover:bg-gray-100"
+                            >
+                                HÍPICA
+                            </li>
+                            <li
+                                data-value="GRANJA"
+                                class="px-3 py-2 cursor-pointer hover:bg-gray-100"
+                            >
+                                GRANJA
+                            </li>
+                            <li
+                                data-value="EMPRESA"
+                                class="px-3 py-2 cursor-pointer hover:bg-gray-100"
+                            >
+                                EMPRESA
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* FECHA DE PEDIDO */}
+        <div>
+            <div class="mt-6">
+                <h3
+                    class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4"
+                >
+                    Fecha de pedido
+                </h3>
+
+                <div class="flex flex-col gap-4">
+                    <div class="w-full md:w-xs">
+                        <input
+                            type="datetime-local"
+                            name="scheduled_for"
+                            class={`form-input ${fieldErrors.scheduled_for ? "border-red-500!" : ""} text-black/50 focus-within:text-black hover:text-black/90`}
+                            placeholder=" "
+                            value={formValues.scheduled_for}
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* CTA */}
+        <div
+            class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-6 border-gray-200"
+        >
+            {/* BOTÓN DE ENVIAR */}
+            <button
+                type="submit"
+                class="inline-flex items-center justify-center
+                    px-8 py-3 rounded-lg
+                    bg-[#013485] text-white font-medium
+                    shadow-md shadow-blue-900/30
+                    hover:bg-[#012b6d]
+                    transition-all
+                    cursor-pointer
+                    hover:-translate-y-0.5
+                    md:w-auto
+                    w-full"
+            >
+                Registrar pedido
+            </button>
+        </div>
+    </form>
+</div>
+
+<script is:inline>
+    document.addEventListener("astro:page-load", () => {
+        const form = document.getElementById("add-order-form");
+        const submitBtn = form?.querySelector("button[type='submit']");
+        let isSubmitting = false;
+
+        if (!form || !submitBtn) return;
+
+        form.addEventListener("submit", () => {
+            if (isSubmitting) return;
+
+            isSubmitting = true;
+            submitBtn.disabled = true;
+            submitBtn.classList.add("opacity-60", "cursor-not-allowed");
+            submitBtn.textContent = "Enviando...";
+        });
+
+        function setupDropdown(
+            wrapperId,
+            buttonId,
+            dropdownId,
+            iconId,
+            hiddenId,
+            labelId,
+        ) {
+            const wrapper = document.getElementById(wrapperId);
+            const button = document.getElementById(buttonId);
+            const dropdown = document.getElementById(dropdownId);
+            const icon = document.getElementById(iconId);
+            const hiddenInput = document.getElementById(hiddenId);
+            const label = document.getElementById(labelId);
+
+            if (!wrapper) return;
+
+            button.addEventListener("click", () => {
+                dropdown.classList.toggle("opacity-0");
+                dropdown.classList.toggle("scale-95");
+                dropdown.classList.toggle("pointer-events-none");
+                icon.classList.toggle("rotate-180");
+            });
+
+            dropdown.querySelectorAll("li").forEach((item) => {
+                item.addEventListener("click", () => {
+                    const value = item.dataset.value;
+                    hiddenInput.value = value;
+                    label.textContent = value || "Sin especificar";
+
+                    dropdown.classList.add(
+                        "opacity-0",
+                        "scale-95",
+                        "pointer-events-none",
+                    );
+                    icon.classList.remove("rotate-180");
+                });
+            });
+
+            document.addEventListener("click", (e) => {
+                if (!wrapper.contains(e.target)) {
+                    dropdown.classList.add(
+                        "opacity-0",
+                        "scale-95",
+                        "pointer-events-none",
+                    );
+                    icon.classList.remove("rotate-180");
+                }
+            });
+        }
+
+        setupDropdown(
+            "boxVolumeWrapper",
+            "boxVolumeButton",
+            "boxVolumeDropdown",
+            "boxVolumeIcon",
+            "box_volume",
+            "boxVolumeLabel",
+        );
+
+        setupDropdown(
+            "companyTypeWrapper",
+            "companyTypeButton",
+            "companyTypeDropdown",
+            "companyTypeIcon",
+            "company_type",
+            "companyTypeLabel",
+        );
+    });
+</script>
+
+<style>
+    .form-label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem 0.875rem;
+        border-radius: 0.5rem;
+        border: 1px solid #d1d5db;
+        font-size: 0.95rem;
+        transition: all 0.15s ease;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #013485;
+        box-shadow: 0 0 0 2px rgba(1, 52, 133, 0.15);
+    }
+</style>

@@ -1,0 +1,28 @@
+---
+import DashBoardLayout from "../../layouts/dashboard/DashBoardLayout.astro";
+import DashboardNav from "../../components/DashboardNav.astro";
+import Archieve from "../../components/Archieve.astro";
+---
+
+<DashBoardLayout title="Archivo de pedidos">
+    <div class="w-full md:max-w-7xl mx-auto flex flex-col relative">
+        <header
+            class="flex flex-col gap-3 my-7 md:mt-14 w-full md:w-7xl mx-auto"
+        >
+            <h1
+                class="text-4xl font-semibold tracking-wide text-gray-900 uppercase animate-fade-in"
+            >
+                Archivo pedidos
+            </h1>
+            <p
+                class="text-gray-600 text-base max-w-3xl leading-relaxed animate-fade-in animate-delay-100"
+            >
+                Listado de los pedidos archivados de la empresa
+            </p>
+        </header>
+        <DashboardNav />
+        <div class="w-full flex flex-col">
+            <Archieve />
+        </div>
+    </div>
+</DashBoardLayout>

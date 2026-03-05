@@ -1,0 +1,54 @@
+<div
+    id="cookie-banner"
+    class="hidden fixed bottom-0 left-0 w-full bg-black/85 py-3 z-10000 animate-fade-in-up px-4 md:px-0"
+>
+    <div
+        class="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-2"
+    >
+        <p
+            class="text-white/90 text-[11.5px] md:text-[10px] font-normal tracking-[1px] text-center md:text-left"
+        >
+            Éste sitio web utiliza cookies. Si continúa navegando por sitio,
+            acepta nuestro uso de cookies.
+        </p>
+
+        <div class="flex flex-row justify-center items-center px-2 gap-2">
+            <button
+                type="button"
+                id="accept-cookie-btn"
+                class="border border-white bg-white text-black/80 text-[11px] text-center px-6 py-2.5 rounded-sm transition-transform hover:-translate-y-0.5 cursor-pointer"
+            >
+                OK
+            </button>
+
+            <a
+                href="/privacy-policy"
+                class="border-2 border-white text-white px-3 tracking-[1px] py-2.5 text-[11px] rounded-sm flex flex-row gap-1 justify-center items-center group transition-all hover:-translate-y-0.5"
+            >
+                Política de privacidad
+            </a>
+        </div>
+    </div>
+</div>
+
+<script is:inline>
+    document.addEventListener("astro:page-load", () => {
+        const banner = document.getElementById("cookie-banner");
+        const acceptBtn = document.getElementById("accept-cookie-btn");
+
+        if (localStorage.getItem("cookiesAccepted") !== "true") {
+            banner.classList.remove("hidden");
+            banner.classList.add("animate-fade-in-up");
+        }
+
+        acceptBtn.addEventListener("click", () => {
+            localStorage.setItem("cookiesAccepted", "true");
+            banner.classList.remove("animate-fade-in-up");
+            banner.classList.add("animate-fade-out-down");
+
+            setTimeout(() => {
+                banner.classList.add("hidden");
+            }, 600);
+        });
+    });
+</script>

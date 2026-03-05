@@ -1,0 +1,687 @@
+---
+const path = Astro.url.pathname;
+const base_URL = "/dashboard";
+const LINKS = [
+    { name: "Pedidos", href: `${base_URL}` },
+    { name: "Archivo de pedidos", href: `${base_URL}/archivo-pedidos` },
+    { name: "Agregar pedido", href: `${base_URL}/agregar-pedido` },
+];
+const USER_LINKS = [
+    { name: "Usuarios", href: `${base_URL}/users` },
+    { name: "Agregar usuario", href: `${base_URL}/users/agregar-usuario` },
+];
+---
+
+<nav
+    class="flex flex-col w-full md:w-7xl mx-auto my-5 sticky top-0"
+    transition:name="pedidos_nav"
+>
+    <div
+        class="w-full flex flex-row justify-start items-center border-b border-b-black/10 py-1"
+    >
+        {
+            path === base_URL ||
+            path === `${base_URL}/agregar-pedido` ||
+            path === `${base_URL}/archivo-pedidos`
+                ? LINKS.map((link) => {
+                      const isActive = path === link.href;
+                      return (
+                          <a
+                              href={link.href}
+                              class={`relative text-sm text-center md:text-left font-medium rounded-md transition-all uppercase hover:bg-gray-500/10 p-2 ${isActive ? "text-blue-500" : "text-black"}`}
+                          >
+                              {link.name}
+
+                              {isActive && (
+                                  <div
+                                      class={`absolute top-full mt-1 left-0 w-full h-0.5 ${isActive ? "bg-blue-500" : "bg-black"} rounded-full`}
+                                      transition:name="link_hightlight"
+                                  />
+                              )}
+                          </a>
+                      );
+                  })
+                : USER_LINKS.map((link) => {
+                      const isActive = path === link.href;
+                      return (
+                          <a
+                              href={link.href}
+                              class={`relative text-sm font-medium rounded-md transition-all uppercase hover:bg-gray-500/10 p-2 ${isActive ? "text-blue-500" : "text-black"}`}
+                          >
+                              {link.name}
+
+                              {isActive && (
+                                  <div
+                                      class={`absolute top-full mt-1 left-0 w-full h-0.5 ${isActive ? "bg-blue-500" : "bg-black"} rounded-full`}
+                                      transition:name="link_hightlight"
+                                  />
+                              )}
+                          </a>
+                      );
+                  })
+        }
+
+        {
+            Astro.url.pathname === base_URL && (
+                <div class="flex justify-center items-center ml-auto">
+                    <button
+                        type="button"
+                        id="search-btn"
+                        class="text-black p-2 rounded-full bg-transparent hover:bg-gray-500/10 flex justify-center items-center transition-colors cursor-pointer"
+                    >
+                        <i class="icon-[iconoir--search]" />
+                    </button>
+
+                    <button
+                        type="button"
+                        id="filter-btn"
+                        class="text-black p-2 rounded-full bg-transparent hover:bg-gray-500/10 flex justify-center items-center transition-colors cursor-pointer"
+                    >
+                        <i class="icon-[mage--filter]" />
+                        <span
+                            id="filter-count"
+                            class="absolute -top-1 -right-1 min-w-4.5 h-4.5 px-1 text-[11px] flex items-center justify-center rounded-full bg-[#013485] text-white font-semibold scale-0 opacity-0 transition-all duration-200"
+                        >
+                            0
+                        </span>
+                    </button>
+                </div>
+            )
+        }
+    </div>
+</nav>
+
+<div
+    id="search-container"
+    class="z-9998 backdrop-blur-2xl animate-fade-in fixed top-0 left-0 w-full h-screen hidden flex-col pt-15"
+>
+    <div class="w-full h-full flex flex-col md:max-w-7xl mx-auto">
+        <div class="w-full flex justify-end items-center">
+            <button
+                type="button"
+                id="close-search-container"
+                class="opacity-0 p-2 rounded-full hover:bg-gray-500/10 transition-colors flex justify-center items-center text-lg font-semibold cursor-pointer"
+                title="Cerrar menú de búsqueda"
+            >
+                <i class="icon-[material-symbols-light--close]"></i>
+            </button>
+        </div>
+        <div class="flex flex-1 flex-col w-full py-6">
+            <div class="w-full flex justify-center items-center p-2">
+                <input
+                    id="search-filter-input"
+                    type="text"
+                    placeholder="Buscar pedidos..."
+                    class="animate-fade-in-down w-full md:w-1/2 p-3 border-b border-b-gray-300 outline-none"
+                />
+            </div>
+            <div class="overflow-hidden p-2">
+                <div
+                    id="results"
+                    class="hidden max-h-150 overflow-y-auto w-full md:max-w-[60%] mx-auto bg-white shadow shadow-black/15 rounded-lg p-4"
+                >
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div
+    id="filter-aside"
+    class="shadow shadow-black/15 hidden fixed top-0 right-0 z-9999 animate-duration-200 bg-white/50 h-screen backdrop-blur-2xl min-w-100 max-w-lg animate-fade-in-left w-full flex-col"
+>
+    <div class="w-full flex justify-end items-center p-4">
+        <button
+            type="button"
+            id="close-filter-aside"
+            class="p-0 md:p-2 rounded-full text-black hover:bg-gray-500/10 transition-colors flex justify-center items-center text-lg font-semibold cursor-pointer"
+            title="Cerrar menú de filtros"
+        >
+            <i class="icon-[material-symbols-light--close]"></i>
+        </button>
+    </div>
+
+    <div class="w-full flex flex-col flex-1 gap-8 p-8 md:p-6">
+        <h2 class="text-lg font-semibold text-gray-800">Filtros</h2>
+
+        <div class="flex flex-col gap-4">
+            <span
+                class="text-[14px] border-b border-b-black/15 font-semibold uppercase text-gray-500"
+            >
+                Tipo de empresa
+            </span>
+
+            <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-sm text-gray-700">Granja</span>
+                <div class="relative">
+                    <input
+                        type="checkbox"
+                        value="Granja"
+                        class="sr-only filter-type peer"
+                    />
+                    <div
+                        class="w-11 h-6 bg-gray-300 rounded-full transition-all duration-300 peer-checked:bg-[#013485]"
+                    >
+                    </div>
+                    <div
+                        class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 peer-checked:translate-x-5"
+                    >
+                    </div>
+                </div>
+            </label>
+
+            <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-sm text-gray-700">Hípica</span>
+                <div class="relative">
+                    <input
+                        type="checkbox"
+                        value="Hipica"
+                        class="sr-only filter-type peer"
+                    />
+                    <div
+                        class="w-11 h-6 bg-gray-300 rounded-full transition-all duration-300 peer-checked:bg-[#013485]"
+                    >
+                    </div>
+                    <div
+                        class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 peer-checked:translate-x-5"
+                    >
+                    </div>
+                </div>
+            </label>
+
+            <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-sm text-gray-700">Empresa</span>
+                <div class="relative">
+                    <input
+                        type="checkbox"
+                        value="Empresa"
+                        class="sr-only filter-type peer"
+                    />
+                    <div
+                        class="w-11 h-6 bg-gray-300 rounded-full transition-all duration-300 peer-checked:bg-[#013485]"
+                    >
+                    </div>
+                    <div
+                        class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 peer-checked:translate-x-5"
+                    >
+                    </div>
+                </div>
+            </label>
+        </div>
+
+        <div class="flex flex-col gap-4">
+            <span
+                class="text-[14px] border-b border-b-black/15 font-semibold uppercase text-gray-500"
+            >
+                Volumen caja
+            </span>
+
+            <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-sm text-gray-700">30m³</span>
+                <div class="relative">
+                    <input
+                        type="checkbox"
+                        value="30"
+                        class="sr-only filter-volume peer"
+                    />
+                    <div
+                        class="w-11 h-6 bg-gray-300 rounded-full transition-all duration-300 peer-checked:bg-[#013485]"
+                    >
+                    </div>
+                    <div
+                        class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 peer-checked:translate-x-5"
+                    >
+                    </div>
+                </div>
+            </label>
+
+            <label class="flex items-center justify-between cursor-pointer">
+                <span class="text-sm text-gray-700">45m³</span>
+                <div class="relative">
+                    <input
+                        type="checkbox"
+                        value="45"
+                        class="sr-only filter-volume peer"
+                    />
+                    <div
+                        class="w-11 h-6 bg-gray-300 rounded-full transition-all duration-300 peer-checked:bg-[#013485]"
+                    >
+                    </div>
+                    <div
+                        class="absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-md transition-all duration-300 peer-checked:translate-x-5"
+                    >
+                    </div>
+                </div>
+            </label>
+        </div>
+
+        <button
+            type="button"
+            id="clear-filters"
+            class="mt-auto md:mt-4 w-full inline-flex justify-center items-center gap-2
+               px-4 py-2 rounded-lg text-sm font-medium
+               bg-red-50 text-red-700
+               border border-red-200
+               hover:bg-red-100 hover:border-red-300
+               active:scale-95
+               transition-all duration-200"
+        >
+            <i class="icon-[mdi--filter-remove-outline] text-base"></i>
+            Borrar filtros
+        </button>
+    </div>
+</div>
+
+<script is:inline>
+    document.addEventListener("astro:page-load", () => {
+        const searchContainer = document.getElementById("search-container");
+        const searchBtn = document.getElementById("search-btn");
+        const closeSearchBtn = document.getElementById(
+            "close-search-container",
+        );
+        const nav = document.querySelector("nav");
+        const searchInput = document.getElementById("search-filter-input");
+        const resultsBox = document.getElementById("results");
+        const normalize = (str) =>
+            str
+                ?.toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "") ?? "";
+
+        const buildSearchIndex = () => {
+            return Array.from(document.querySelectorAll(".card")).map(
+                (card) => {
+                    return {
+                        element: card,
+                        id: card.getAttribute("data-id") ?? "",
+                        company:
+                            card.querySelector(".company_name")?.textContent ??
+                            "",
+                        contact:
+                            card.querySelector(".text-xs.text-gray-800")
+                                ?.textContent ?? "",
+                        email:
+                            card.querySelector(".text-xs.text-gray-600 span")
+                                ?.textContent ?? "",
+                        details: card.querySelector("p")?.textContent ?? "",
+                        company_type:
+                            card.querySelector(".company_type")?.textContent ??
+                            "",
+                        data_officefullname:
+                            card
+                                .querySelector(".office-label")
+                                ?.getAttribute("data-officefullname") ?? "",
+                        register_date:
+                            card
+                                .querySelector(".register-date")
+                                .getAttribute("data-registerdate") ?? "",
+                        expiration_date:
+                            card
+                                .querySelector(".expiration-date")
+                                .getAttribute("data-expirationdate") ?? "",
+                        volume:
+                            card.querySelector(".box_volume")?.textContent ??
+                            "",
+                        order_details:
+                            card.querySelector(".order_detail")?.textContent ??
+                            "",
+                    };
+                },
+            );
+        };
+        const searchIndex = buildSearchIndex();
+        const filterBox = document.getElementById("filter-aside");
+        const filterBtn = document.getElementById("filter-btn");
+        const closeFilterBtn = document.getElementById("close-filter-aside");
+        const cards = () => Array.from(document.querySelectorAll(".card"));
+
+        const typeCheckboxes = document.querySelectorAll(".filter-type");
+        const volumeCheckboxes = document.querySelectorAll(".filter-volume");
+        const clearFiltersBtn = document.getElementById("clear-filters");
+
+        const filterCountBadge = document.getElementById("filter-count");
+
+        function updateFilterCount() {
+            const activeFilters =
+                Array.from(typeCheckboxes).filter((cb) => cb.checked).length +
+                Array.from(volumeCheckboxes).filter((cb) => cb.checked).length;
+
+            if (activeFilters > 0) {
+                filterCountBadge.textContent = activeFilters;
+                filterCountBadge.classList.remove("scale-0", "opacity-0");
+                filterCountBadge.classList.add("scale-100", "opacity-100");
+            } else {
+                filterCountBadge.classList.remove("scale-100", "opacity-100");
+                filterCountBadge.classList.add("scale-0", "opacity-0");
+            }
+        }
+
+        clearFiltersBtn.addEventListener("click", () => {
+            typeCheckboxes.forEach((cb) => (cb.checked = false));
+            volumeCheckboxes.forEach((cb) => (cb.checked = false));
+            cards().forEach((card) => {
+                showCard(card);
+                card.classList.remove("card-hidden");
+                card.classList.add("card-visible");
+            });
+            updateFilterCount();
+        });
+
+        function showCard(card) {
+            card.style.display = "";
+            requestAnimationFrame(() => {
+                card.classList.remove("card-hidden");
+                card.classList.add("card-visible");
+            });
+        }
+
+        function hideCard(card) {
+            card.classList.remove("card-visible");
+            card.classList.add("card-hidden");
+
+            setTimeout(() => {
+                card.style.display = "none";
+            }, 300);
+        }
+
+        function applyFilters() {
+            const selectedTypes = Array.from(typeCheckboxes)
+                .filter((cb) => cb.checked)
+                .map((cb) => cb.value.toLowerCase());
+
+            const selectedVolumes = Array.from(volumeCheckboxes)
+                .filter((cb) => cb.checked)
+                .map((cb) => cb.value);
+
+            cards().forEach((card) => {
+                const cardType = card.dataset.companyType?.toLowerCase() ?? "";
+                const cardVolume = card.dataset.volume ?? "";
+
+                const matchType =
+                    selectedTypes.length === 0 ||
+                    selectedTypes.includes(cardType);
+
+                const matchVolume =
+                    selectedVolumes.length === 0 ||
+                    selectedVolumes.includes(cardVolume);
+
+                if (matchType && matchVolume) {
+                    card.classList.remove("card-hidden");
+                    card.classList.add("card-visible");
+                    setTimeout(() => {
+                        showCard(card);
+                    }, 600);
+                } else {
+                    card.classList.remove("card-visible");
+                    card.classList.add("card-hidden");
+                    setTimeout(() => {
+                        hideCard(card);
+                    }, 600);
+                }
+            });
+            updateFilterCount();
+        }
+
+        typeCheckboxes.forEach((cb) =>
+            cb.addEventListener("change", applyFilters),
+        );
+
+        volumeCheckboxes.forEach((cb) =>
+            cb.addEventListener("change", applyFilters),
+        );
+
+        filterBtn.addEventListener("click", () => {
+            filterBox.classList.remove("hidden", "animate-fade-out-right");
+            filterBox.classList.add("flex", "animate-fade-in-left");
+
+            filterBtn.classList.add("pointer-events-none");
+        });
+
+        closeFilterBtn.addEventListener("click", () => {
+            filterBox.classList.remove("animate-fade-in-left");
+            filterBox.classList.add("animate-fade-out-right");
+
+            setTimeout(() => {
+                filterBox.classList.add("hidden");
+                filterBox.classList.remove("flex", "animate-fade-out-right");
+
+                filterBtn.classList.remove("pointer-events-none");
+            }, 500);
+        });
+
+        searchInput.addEventListener("input", () => {
+            const query = normalize(searchInput.value.trim());
+
+            if (!query) {
+                resultsBox.classList.add("hidden");
+                resultsBox.innerHTML = "";
+                return;
+            }
+
+            const matches = searchIndex
+                .filter((item) => {
+                    const combined = normalize(
+                        `${item.company} ${item.contact} ${item.email} ${item.details} ${item.company_type} ${item.volume} ${item.data_officefullname} ${item.register_date} ${item.expiration_date} ${item.order_details}`,
+                    );
+                    return combined.includes(query);
+                })
+                .sort((a, b) => {
+                    const parseDate = (dateStr) => {
+                        if (!dateStr) return 0;
+
+                        const [day, month, year] = dateStr.split("/");
+                        return new Date(`${year}-${month}-${day}`).getTime();
+                    };
+
+                    return (
+                        parseDate(b.register_date) - parseDate(a.register_date)
+                    );
+                });
+
+            resultsBox.innerHTML = "";
+
+            if (matches.length === 0) {
+                resultsBox.innerHTML = `
+                    <div class="text-gray-500 text-sm">
+                        <span class="animate-fade-in">No se encontraron resultados</span>
+                    </div>
+                `;
+                resultsBox.classList.remove("hidden");
+                return;
+            }
+
+            matches.forEach((item) => {
+                const resultItem = document.createElement("div");
+                resultItem.className =
+                    "p-3 rounded-lg hover:bg-gray-100 cursor-pointer transition-all animate-fade-in-up";
+
+                resultItem.innerHTML = `
+                    <div class="w-full flex justify-between items-center flex-row">
+                        <div class="flex flex-col justify-start items-start">
+                            <div class="font-semibold text-gray-800">
+                                ${item.company}
+                            </div>
+                            <div class="text-xs text-gray-500 truncate">
+                                ${item.register_date}
+                            </div>
+                        </div>
+                        <div class="flex flex-row items-center gap-2">
+                            <button
+                                type="button"
+                                class="show-order inline-flex items-center gap-1.5 px-3 py-1.5
+                                    rounded-md text-xs font-medium
+                                    bg-blue-50 text-blue-700
+                                    border border-blue-200
+                                    hover:bg-blue-100 hover:border-blue-300
+                                    active:scale-95
+                                    transition-all duration-150
+                                    cursor-pointer
+                                "
+                            >
+                                <i class="icon-[mdi--eye-outline] text-sm"></i>
+                                Mostrar
+                            </button>
+
+                            <a
+                                href="/dashboard/editar-pedido?card=${item.id}"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5
+                                    rounded-md text-xs font-medium
+                                    bg-gray-100 text-gray-700
+                                    border border-gray-200
+                                    hover:bg-gray-200 hover:border-gray-300
+                                    active:scale-95
+                                    transition-all duration-150"
+                            >
+                                <i class="icon-[uil--edit] text-sm"></i>
+                                Editar
+                            </a>
+                        </div>
+                    </div>
+                `;
+
+                const showBtn = resultItem.querySelector(".show-order");
+
+                showBtn.addEventListener("click", () => {
+                    resultsBox.classList.add("hidden");
+                    searchContainer.classList.add("hidden");
+                    searchContainer.classList.remove("flex");
+
+                    document.body.classList.remove("overflow-hidden");
+                    document.body.classList.remove("overflow-hidden!");
+
+                    closeSearchBtn.classList.add("opacity-0");
+
+                    searchBtn.classList.remove(
+                        "opacity-0",
+                        "pointer-events-none",
+                        "animate-zoom-out",
+                        "animate-duration-200",
+                    );
+
+                    item.element.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                    });
+
+                    searchInput.value = "";
+                });
+
+                resultsBox.appendChild(resultItem);
+            });
+
+            resultsBox.classList.remove("hidden");
+        });
+
+        let isSearchOpen = false;
+        searchBtn.addEventListener("click", () => {
+            isSearchOpen = !isSearchOpen;
+            setTimeout(() => {
+                closeSearchBtn.classList.remove("opacity-0");
+                closeSearchBtn.classList.add(
+                    "animate-zoom-in",
+                    "animate-duration-100",
+                );
+                setTimeout(() => {
+                    closeSearchBtn.classList.remove("animate-zoom-in");
+                }, 600);
+            }, 600);
+            if (isSearchOpen) {
+                document.body.classList.add("overflow-hidden!");
+                searchInput.focus();
+            } else {
+                document.body.classList.remove("overflow-hidden!");
+            }
+            searchContainer.classList.toggle("hidden");
+            searchContainer.classList.toggle("flex");
+            if (isSearchOpen) {
+                nav.classList.add("bg-transparent");
+            } else {
+                nav.classList.remove("bg-transparent");
+            }
+
+            searchBtn.classList.add(
+                "pointer-events-none",
+                "animate-zoom-out",
+                "animate-duration-200",
+            );
+            setTimeout(() => {
+                searchBtn.classList.add("opacity-0");
+            }, 600);
+        });
+
+        closeSearchBtn.addEventListener("click", () => {
+            isSearchOpen = false;
+            resultsBox.classList.add("hidden");
+            searchInput.classList.add("animate-fade-out-up");
+            closeSearchBtn.classList.add(
+                "animate-zoom-out",
+                "animate-duration-100",
+            );
+            setTimeout(() => {
+                searchBtn.classList.add(
+                    "animate-zoom-in",
+                    "animate-duration-100",
+                );
+                setTimeout(() => {
+                    searchBtn.classList.remove(
+                        "animate-zoom-in",
+                        "animate-duration-100",
+                    );
+                }, 600);
+            }, 50);
+            setTimeout(() => {
+                searchInput.classList.remove("animate-fade-out-up");
+                document.body.classList.remove("overflow-hidden!");
+                searchContainer.classList.add("animate-fade-out");
+                setTimeout(() => {
+                    closeSearchBtn.classList.remove(
+                        "animate-zoom-out",
+                        "animate-duration-100",
+                    );
+                    closeSearchBtn.classList.add("opacity-0");
+                    searchContainer.classList.remove(
+                        "flex",
+                        "animate-fade-out",
+                    );
+                    searchContainer.classList.add("hidden");
+                    searchInput.value = "";
+                }, 0);
+            }, 600);
+            searchBtn.classList.remove(
+                "opacity-0",
+                "pointer-events-none",
+                "animate-zoom-out",
+                "animate-duration-200",
+            );
+        });
+    });
+</script>
+
+<style>
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus,
+    input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+        box-shadow: 0 0 0 1000px transparent inset !important;
+        -webkit-text-fill-color: #111827 !important;
+        transition: background-color 9999s ease-in-out 0s;
+    }
+</style>
+
+<style is:global>
+    .card-hidden {
+        opacity: 0;
+        transform: scale(0.95);
+        pointer-events: none;
+    }
+
+    .card-visible {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    #results::-webkit-scrollbar {
+        width: 4px !important;
+    }
+</style>

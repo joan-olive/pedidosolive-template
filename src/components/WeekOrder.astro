@@ -1,0 +1,727 @@
+---
+type Order = {
+    id: string;
+    company_name: string;
+    contact_name: string | null;
+    contact_surname: string | null;
+    contact_email: string | null;
+    contact_phone: string | null;
+    order_details: string;
+    created_at: string;
+    scheduled_for: string;
+    isClient: boolean;
+    stage: string;
+    office?: {
+        id: string;
+        name: string;
+        surname: string;
+    } | null;
+    is_archieve?: boolean;
+    company_type?: string;
+    box_volume?: number;
+};
+
+type Props = {
+    weekNumber: string | number;
+    weekOrders: Order[];
+    user: any;
+    getMondayOfWeek: (date: Date) => Date;
+    formatMondayLabel: (date: Date) => string;
+};
+
+const { weekNumber, weekOrders, user, getMondayOfWeek, formatMondayLabel } =
+    Astro.props as Props;
+
+const stageConfig = {
+    PENDING: {
+        label: "Pendiente",
+        icon: "icon-[lsicon--sand-glass-outline]",
+        classes: "bg-yellow-100 text-yellow-700",
+    },
+    CURRENT: {
+        label: "En curso",
+        icon: "icon-[svg-spinners--clock]",
+        classes: "bg-blue-100 text-blue-700",
+    },
+    FINISHED: {
+        label: "Finalizado",
+        icon: "icon-[lets-icons--done]",
+        classes: "bg-green-100 text-green-700",
+    },
+} as const;
+
+const baseStageClasses =
+    "border-none outline-none text-xs px-3 py-1 rounded-full font-medium flex justify-center items-center gap-1 transition-all";
+---
+
+<div class="relative accordion rounded-lg overflow-hidden">
+    <button
+        type="button"
+        data-accordion-trigger
+        class="w-full cursor-pointer select-none text-sm font-semibold bg-gray-200/30 hover:bg-gray-200/70 p-3 uppercase flex items-center justify-between transition-all rounded-lg border-none outline-none"
+    >
+        <span
+            class="sticky top-0 flex flex-wrap gap-2 items-center flex-row justify-center"
+        >
+            <span class="font-bold opacity-90 text-blue-900">
+                Semana {weekNumber} ·
+            </span>
+
+            {
+                (() => {
+                    const firstOrderDate = weekOrders?.[0]?.scheduled_for;
+                    if (!firstOrderDate) return null;
+
+                    const monday = getMondayOfWeek(new Date(firstOrderDate));
+                    const label = formatMondayLabel(monday);
+                    const count = weekOrders.length;
+
+                    return (
+                        <>
+                            <span class="text-xs text-blue-950">
+                                Semana del {label}
+                            </span>
+
+                            <span class="text-xs text-gray-500">
+                                · {count} {count === 1 ? "pedido" : "pedidos"}
+                            </span>
+                        </>
+                    );
+                })()
+            }
+        </span>
+
+        <i
+            class="icon-[line-md--chevron-down] transition-transform duration-300 text-lg font-bold"
+            data-chevron></i>
+    </button>
+
+    <div
+        data-accordion-content
+        class="overflow-hidden max-h-0 opacity-0 transition-[max-height,opacity] duration-500 ease-in-out bg-gray-200/30 rounded-b-lg px-2 md:px-3"
+    >
+        <div
+            data-accordion-inner
+            class="px-0 md:px-4 py-4 max-[880px]:grid grid max-[880px]:grid-cols-1 max-[1300px]:grid-cols-2 grid-cols-3 gap-10 items-start justify-items-center"
+        >
+            {
+                weekOrders?.map((order) => {
+                    const {
+                        id,
+                        company_name,
+                        contact_name,
+                        contact_surname,
+                        contact_email,
+                        contact_phone,
+                        order_details,
+                        created_at,
+                        isClient,
+                        stage,
+                        company_type,
+                        box_volume,
+                        scheduled_for,
+                    } = order;
+
+                    function noContactData() {
+                        return (
+                            !contact_name &&
+                            !contact_surname &&
+                            !contact_email &&
+                            !contact_phone
+                        );
+                    }
+
+                    return (
+                        <article
+                            class="max-[1300px]:w-full w-105 card transition-all duration-500 relative"
+                            data-id={id}
+                            data-company={company_name ?? ""}
+                            data-company-type={company_type ?? ""}
+                            data-contact={`${contact_name ?? ""} ${contact_surname ?? ""}`}
+                            data-email={contact_email ?? ""}
+                            data-details={order_details ?? ""}
+                            data-volume={box_volume ?? ""}
+                        >
+                            <div class="preloader flex items-center justify-center transition-opacity duration-300 opacity-100">
+                                {" "}
+                                <div class="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />{" "}
+                            </div>
+                            <div class="opacity-0 transition-opacity flex flex-col min-h-105 loaded">
+                                <div class="relative flex-1 bg-white border border-black/10 shadow-md shadow-black/20 rounded-xl p-5 flex flex-col gap-4 transition-all overflow-hidden duration-700">
+                                    <form
+                                        class="animate-duration-250 delete-order-form hidden absolute w-full h-full backdrop-blur-lg top-0 left-0 z-9998 animate-fade-in justify-center items-center flex-col gap-2 rounded-xl"
+                                        data-id={id}
+                                        action="/api/eliminar-pedido"
+                                        method="POST"
+                                    >
+                                        <input
+                                            type="hidden"
+                                            name="id"
+                                            value={id}
+                                        />
+
+                                        <span class="text-black/70">
+                                            Quieres eliminar éste pedido?
+                                        </span>
+
+                                        <div class="w-full flex flex-row justify-center items-center gap-2">
+                                            <button
+                                                title="Eliminar pedido"
+                                                type="submit"
+                                                class="p-2 text-sm bg-red-500/30 text-red-900 hover:-translate-y-0.5 transition-transform cursor-pointer rounded-lg border border-red-500/30 flex justify-center items-center gap-2"
+                                            >
+                                                <i class="icon-[mi--delete] text-lg" />
+                                                Eliminar
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="cancel-delete p-2 text-sm bg-[#013485] text-white hover:-translate-y-0.5 transition-transform cursor-pointer rounded-lg border-none outline-none border border-transparent hover:bg-[#012b6d] flex justify-center items-center gap-2"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    {/* {stage === "FINISHED" && (
+                                        <div class="absolute top-0 left-0 w-full h-full bg-green-500/20 backdrop-blur-[1.5px] z-9000 flex justify-center items-center">
+                                            <div class="flex size-auto flex-col justify-center items-center gap-1 text-green-700">
+                                                <span class="rounded-full text-lg px-4 py-2 bg-green-300 text-green-900 flex flex-row justify-center items-center gap-1 shadow-md shadow-green-700/20 animate-zoom-in">
+                                                    Servido
+                                                    <i class="icon-[lets-icons--done] text-2xl" />
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )} */}
+
+                                    <div class="flex justify-between items-start w-full">
+                                        <div class="flex flex-col">
+                                            <div class="max-w-50">
+                                                <h3 class="text-base font-semibold uppercase tracking-wider text-gray-500">
+                                                    Cliente
+                                                </h3>
+                                                <p class="text-base font-medium text-gray-900 mt-1 company_name">
+                                                    {company_name}
+                                                </p>
+                                            </div>{" "}
+                                            {/*  MAX TIME */}
+                                            <div
+                                                class="w-full flex justify-start items-start"
+                                                id="max-time"
+                                            >
+                                                <span
+                                                    data-expirationdate={`${new Date(
+                                                        scheduled_for,
+                                                    ).toLocaleString("es-ES", {
+                                                        day: "2-digit",
+                                                        month: "2-digit",
+                                                        year: "numeric",
+                                                    })}`}
+                                                    class="expiration-date mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium"
+                                                >
+                                                    <i class="icon-[mdi--calendar-clock-outline] text-sm" />
+                                                    {(() => {
+                                                        const text = new Date(
+                                                            scheduled_for,
+                                                        ).toLocaleString(
+                                                            "es-ES",
+                                                            {
+                                                                weekday:
+                                                                    "short",
+                                                                day: "2-digit",
+                                                                month: "short",
+                                                                hour: "2-digit",
+                                                                minute: "2-digit",
+                                                            },
+                                                        );
+
+                                                        return text;
+                                                    })()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="flex justify-center items-center gap-1">
+                                            {(() => {
+                                                const stageData =
+                                                    stageConfig[
+                                                        stage as keyof typeof stageConfig
+                                                    ];
+                                                if (!stageData) return null;
+
+                                                return (
+                                                    <div class="relative">
+                                                        <button
+                                                            type="button"
+                                                            class={`${baseStageClasses} ${stageData.classes} cursor-pointer stage-toggle`}
+                                                            data-id={id}
+                                                        >
+                                                            <i
+                                                                class={
+                                                                    stageData.icon
+                                                                }
+                                                            />
+                                                            {stageData.label}
+                                                        </button>
+
+                                                        <div
+                                                            class="hidden absolute right-0 mt-3 w-56 rounded-xl border border-gray-200 bg-white/95 backdrop-blur-md shadow-xl shadow-black/10 ring-1 ring-black/5 z-50 overflow-hidden animate-in fade-in zoom-in-95 animate-fade-in-down animate-duration-200 duration-150 stage-menu"
+                                                            data-id={id}
+                                                        >
+                                                            <form
+                                                                class="flex flex-col stage-form"
+                                                                data-id={id}
+                                                            >
+                                                                <div class="px-4 pt-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                                                                    Cambiar
+                                                                    estado
+                                                                </div>
+
+                                                                <div class="px-2 pb-2 flex flex-col gap-1">
+                                                                    <input
+                                                                        type="hidden"
+                                                                        name="order_id"
+                                                                        value={
+                                                                            id
+                                                                        }
+                                                                    />
+
+                                                                    {Object.entries(
+                                                                        stageConfig,
+                                                                    ).map(
+                                                                        ([
+                                                                            key,
+                                                                            value,
+                                                                        ]) =>
+                                                                            key !==
+                                                                                stage && (
+                                                                                <button
+                                                                                    type="submit"
+                                                                                    name="stage"
+                                                                                    value={
+                                                                                        key
+                                                                                    }
+                                                                                    class={`group flex items-center gap-3 w-full px-4 py-2.5 text-sm rounded-lg transition-all duration-150 hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer ${value.classes}`}
+                                                                                >
+                                                                                    <i
+                                                                                        class={`${value.icon} text-base opacity-80`}
+                                                                                    />
+                                                                                    <span class="flex-1 text-left font-medium">
+                                                                                        {
+                                                                                            value.label
+                                                                                        }
+                                                                                    </span>
+                                                                                </button>
+                                                                            ),
+                                                                    )}
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </div>
+                                    </div>
+
+                                    <div class="w-full h-px bg-black/10" />
+
+                                    {!noContactData() && (
+                                        <div class="flex flex-col">
+                                            <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                                Contacto
+                                            </h3>
+
+                                            <div class="text-xs text-gray-800">
+                                                {contact_name} {contact_surname}
+                                            </div>
+
+                                            <div class="flex flex-col text-xs text-gray-600 gap-1">
+                                                <span>{contact_email}</span>
+                                                <div class="flex flex-row gap-1 items-center">
+                                                    {contact_phone && (
+                                                        <span class="opacity-70">
+                                                            +34
+                                                        </span>
+                                                    )}
+                                                    ·
+                                                    <span class="font-bold">
+                                                        {(contact_phone ?? "")
+                                                            .replace(
+                                                                /(\d{3})(\d)/,
+                                                                "$1 $2",
+                                                            )
+                                                            .replace(
+                                                                /(\d{3}) (\d{3})(\d)/,
+                                                                "$1 $2 $3",
+                                                            )}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!noContactData() && (
+                                        <div class="w-full h-px bg-black/10" />
+                                    )}
+
+                                    <div class="flex flex-col gap-1">
+                                        <span class="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                                            Servicio solicitado
+                                        </span>
+
+                                        <p class="order_detail text-sm text-gray-900 leading-relaxed bg-gray-500/8 px-4 py-3 rounded-xl">
+                                            {order_details}
+                                        </p>
+                                    </div>
+
+                                    {(company_type || box_volume) && (
+                                        <div class="w-full flex flex-col gap-1 pt-2">
+                                            <div class="w-full flex flex-row justify-start items-center">
+                                                {company_type && (
+                                                    <div class="flex flex-row gap-1 items-center text-xs text-gray-700">
+                                                        <i class="icon-[mdi--domain]" />
+                                                        <span class="company_type">
+                                                            {company_type}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div class="w-full flex flex-row justify-start items-center">
+                                                {box_volume && (
+                                                    <div class="flex flex-row gap-1 items-center text-xs text-gray-700">
+                                                        <i class="icon-[mdi--cube-outline]" />
+                                                        <span class="box_volume">
+                                                            {box_volume}m³
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div class="flex justify-between items-center pt-3 text-xs text-gray-400 mt-auto">
+                                        <span
+                                            class="register-date"
+                                            data-registerdate={`${new Date(
+                                                created_at,
+                                            ).toLocaleString("es-ES", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                year: "numeric",
+                                            })}`}
+                                        >
+                                            {(() => {
+                                                const text = new Date(
+                                                    created_at,
+                                                ).toLocaleString("es-ES", {
+                                                    weekday: "long",
+                                                    day: "2-digit",
+                                                    month: "2-digit",
+                                                    year: "numeric",
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                });
+
+                                                return (
+                                                    text.charAt(0) +
+                                                    text.slice(1)
+                                                );
+                                            })()}
+                                        </span>
+
+                                        {!isClient ? (
+                                            order.office &&
+                                            order.office.id === user?.id ? (
+                                                <span
+                                                    class="office-label inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-900 text-xs font-medium"
+                                                    data-officefullname={`Tú`}
+                                                >
+                                                    <i class="icon-[mdi--office-building]" />
+                                                    Oficina · Tú
+                                                </span>
+                                            ) : (
+                                                <span
+                                                    class="office-label inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-900 text-xs font-medium"
+                                                    data-officefullname={`${order.office?.name} ${order.office?.surname}`}
+                                                >
+                                                    <i class="icon-[mdi--office-building]" />
+                                                    Oficina ·{" "}
+                                                    {order.office?.name}{" "}
+                                                    {order.office?.surname}
+                                                </span>
+                                            )
+                                        ) : (
+                                            <span
+                                                data-officefullname={`Cliente`}
+                                                class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs">
+                                                <i class="icon-[mdi--account]" />
+                                                Cliente
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div class="w-full flex flex-row flex-wrap justify-start items-center p-2 gap-2">
+                                    <a
+                                        title="Editar pedido"
+                                        href={`/dashboard/editar-pedido?card=${id}`}
+                                        class="p-2 text-sm bg-[#013485]/10 text-[#013485] rounded-lg border border-[#013485]/10 hover:-translate-y-0.5 transition-transform cursor-pointer flex justify-center items-center"
+                                    >
+                                        <i class="icon-[uil--edit] text-lg" />
+                                    </a>
+
+                                    <button
+                                        title="Eliminar pedido"
+                                        type="button"
+                                        class="delete-order-button p-2 text-sm bg-red-500/30 text-red-900 hover:-translate-y-0.5 transition-transform cursor-pointer rounded-lg border border-red-500/30 flex justify-center items-center gap-2"
+                                    >
+                                        <i class="icon-[mi--delete] text-lg" />
+                                    </button>
+                                    {!order.is_archieve && (
+                                        <div class="ml-auto flex justify-center items-center flex-row gap-1">
+                                            <form
+                                                action="/api/archivar-pedido"
+                                                class="flex justify-center items-center"
+                                                method="POST"
+                                            >
+                                                <input
+                                                    type="hidden"
+                                                    name="order_id"
+                                                    value={id}
+                                                />
+                                                <button
+                                                    title="Archivar pedido"
+                                                    type="submit"
+                                                    class="group flex items-center gap-1.5 p-2 cursor-pointer rounded-lg
+                                                            bg-orange-50 text-orange-700
+                                                            border border-orange-200
+                                                            hover:bg-orange-100 hover:border-orange-300
+                                                            hover:translate-x-0.5 transition-all text-xs font-medium
+                                                        "
+                                                >
+                                                    <i class="icon-[mdi--archive-outline] text-sm group-hover:scale-110 transition-transform" />
+                                                    Archivar
+                                                </button>
+                                            </form>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </article>
+                    );
+                })
+            }
+        </div>
+    </div>
+</div>
+
+<script is:inline>
+    document.addEventListener("astro:page-load", initCards);
+    document.addEventListener("DOMContentLoaded", initCards);
+
+    let clickListenerAttached = false;
+
+    function initCards() {
+        const cards = document.querySelectorAll(".card");
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        const card = entry.target;
+                        const preloader = card.querySelector(".preloader");
+                        const loaded = card.querySelector(".loaded");
+
+                        if (preloader) {
+                            preloader.classList.remove("opacity-100");
+                            preloader.classList.add("opacity-0");
+                            setTimeout(() => {
+                                preloader.style.display = "none";
+                            }, 300);
+                        }
+
+                        if (loaded) {
+                            loaded.classList.remove("opacity-0");
+                            loaded.classList.add("opacity-100");
+                        }
+
+                        observer.unobserve(card);
+                    }
+                });
+            },
+            { threshold: 0.2 },
+        );
+
+        cards.forEach((card) => observer.observe(card));
+
+        if (!clickListenerAttached) {
+            clickListenerAttached = true;
+
+            const STAGE_CONFIG = {
+                PENDING: {
+                    label: "Pendiente",
+                    icon: "icon-[lsicon--sand-glass-outline]",
+                    classes: "bg-yellow-100 text-yellow-700",
+                },
+                CURRENT: {
+                    label: "En curso",
+                    icon: "icon-[svg-spinners--clock]",
+                    classes: "bg-blue-100 text-blue-700",
+                },
+                FINISHED: {
+                    label: "Finalizado",
+                    icon: "icon-[lets-icons--done]",
+                    classes: "bg-green-100 text-green-700",
+                },
+            };
+
+            document.addEventListener("click", async (e) => {
+                const toggle = e.target.closest(".stage-toggle");
+                const option = e.target.closest(".stage-form button");
+                const menus = document.querySelectorAll(".stage-menu");
+
+                if (toggle) {
+                    const id = toggle.dataset.id;
+
+                    menus.forEach((menu) => {
+                        if (menu.dataset.id === id) {
+                            menu.classList.toggle("hidden");
+                        } else {
+                            menu.classList.add("hidden");
+                        }
+                    });
+
+                    return;
+                }
+
+                if (option) {
+                    e.preventDefault();
+
+                    const form = option.closest(".stage-form");
+                    const orderId = form.querySelector(
+                        'input[name="order_id"]',
+                    ).value;
+                    const newStage = option.value;
+
+                    const formData = new FormData();
+                    formData.append("id", orderId);
+                    formData.append("stage", newStage);
+
+                    try {
+                        await fetch("/api/set-stage", {
+                            method: "POST",
+                            body: formData,
+                            redirect: "manual",
+                        });
+
+                        const card = document.querySelector(
+                            `.card[data-id="${orderId}"]`,
+                        );
+
+                        if (!card) return;
+
+                        if (newStage === "FINISHED") {
+                            card.style.transition = "all 0.3s ease";
+                            card.style.opacity = "0";
+                            card.style.transform = "scale(0.95)";
+
+                            setTimeout(() => {
+                                const weekAccordion =
+                                    card.closest(".accordion");
+                                card.remove();
+
+                                if (weekAccordion) {
+                                    const remainingCards =
+                                        weekAccordion.querySelectorAll(".card");
+
+                                    if (remainingCards.length === 0) {
+                                        weekAccordion.style.transition =
+                                            "all 0.3s ease";
+                                        weekAccordion.style.opacity = "0";
+                                        weekAccordion.style.transform =
+                                            "scale(0.98)";
+
+                                        setTimeout(() => {
+                                            const monthContainer =
+                                                weekAccordion.parentElement;
+                                            weekAccordion.remove();
+
+                                            if (monthContainer) {
+                                                const remainingWeeks =
+                                                    monthContainer.querySelectorAll(
+                                                        ".accordion",
+                                                    );
+
+                                                if (
+                                                    remainingWeeks.length === 0
+                                                ) {
+                                                    monthContainer.style.transition =
+                                                        "all 0.3s ease";
+                                                    monthContainer.style.opacity =
+                                                        "0";
+
+                                                    setTimeout(() => {
+                                                        monthContainer.remove();
+                                                    }, 300);
+                                                }
+                                            }
+                                        }, 300);
+                                    }
+                                }
+                            }, 300);
+
+                            return;
+                        }
+
+                        const stageButton = card.querySelector(".stage-toggle");
+                        const stageData = STAGE_CONFIG[newStage];
+
+                        stageButton.className =
+                            "border-none outline-none text-xs px-3 py-1 rounded-full font-medium flex justify-center items-center gap-1 transition-all cursor-pointer stage-toggle " +
+                            stageData.classes;
+
+                        stageButton.innerHTML =
+                            `<i class="${stageData.icon}"></i>` +
+                            stageData.label;
+
+                        const menuContainer = card.querySelector(
+                            ".stage-menu .px-2.pb-2",
+                        );
+
+                        menuContainer.innerHTML = `<input type="hidden" name="order_id" value="${orderId}" />`;
+
+                        Object.entries(STAGE_CONFIG).forEach(([key, value]) => {
+                            if (key === newStage) return;
+
+                            const button = document.createElement("button");
+                            button.type = "submit";
+                            button.name = "stage";
+                            button.value = key;
+                            button.className =
+                                "group flex items-center gap-3 w-full px-4 py-2.5 text-sm rounded-lg transition-all duration-150 cursor-pointer " +
+                                value.classes;
+
+                            button.innerHTML = `
+                                <i class="${value.icon} text-base opacity-70"></i>
+                                <span class="flex-1 text-left font-medium text-gray-700">
+                                    ${value.label}
+                                </span>
+                            `;
+
+                            menuContainer.appendChild(button);
+                        });
+
+                        menus.forEach((menu) => menu.classList.add("hidden"));
+                    } catch (err) {
+                        console.error(err);
+                    }
+
+                    return;
+                }
+
+                if (!e.target.closest(".stage-menu")) {
+                    menus.forEach((menu) => menu.classList.add("hidden"));
+                }
+            });
+        }
+    }
+</script>

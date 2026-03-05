@@ -1,0 +1,79 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Página no encontrada">
+    <section
+        class="flex flex-col justify-center items-center bg-gray-50 px-2 md:px-6 text-center w-full"
+    >
+        <span
+            class="text-sm font-semibold text-blue-600 animate-fade-in-down uppercase tracking-widest mb-4"
+        >
+            Error 404
+        </span>
+
+        <h1
+            class="text-4xl text-center animate-fade-in-up w-full md:text-5xl font-extrabold text-gray-900 mb-4"
+        >
+            Página no encontrada
+        </h1>
+
+        <div class="w-full flex flex-col justify-center items-center gap-1">
+            <p class="max-w-xl text-blue-900 text-base md:text-lg">
+                Lo sentimos, la página que estás buscando no existe o ha sido
+                movida.
+            </p>
+            <div class="w-1/2 h-0.75 bg-blue-950 rounded-full md:max-w-xs mt-2 origin-center mb-8" id="separator"></div>
+            <div
+                class="max-w-xl text-black text-base mt-3 flex flex-col gap-2 pb-3"
+            >
+                <span>
+                    Puedes volver a la página principal y continuar desde allí.
+                </span>
+                <a
+                    href="/"
+                    class="inline-flex items-center justify-center rounded-md bg-[#013485] hover:bg-[#012b6d] px-6 py-3 text-white font-medium shadow-md transition-all hover:-translate-y-0.5 md:max-w-40 mx-auto"
+                >
+                    Volver a inicio
+                </a>
+            </div>
+            <div
+                class="relative flex justify-center items-center w-full md:max-w-lg py-5"
+            >
+                <div class="w-full h-px bg-black/20 rounded-full flex"></div>
+                <span
+                    class="absolute top-3.5 text-black/70 px-2 bg-gray-50 flex justify-center items-center size-3"
+                >
+                    o
+                </span>
+            </div>
+            <div
+                class="max-w-xl text-black text-base mb-10 flex flex-col gap-2 py-3"
+            >
+                <span> Puedes registrar un servicio. </span>
+                <a
+                    href="/solicitar-pedido"
+                    class="inline-flex items-center justify-center rounded-md bg-transparent hover:bg-blue-50 border border-transparent hover:border-blue-100 px-6 py-3 font-medium shadow-md transition-all hover:-translate-y-0.5 md:max-w-fit mx-auto text-black"
+                >
+                    Registrar un pedido
+                </a>
+            </div>
+        </div>
+    </section>
+</Layout>
+
+
+<style>
+    #separator {
+        animation: line 2s ease-in-out forwards;
+    }
+
+    @keyframes line {
+        0% {
+            width: 0;
+        }
+        100% {
+            width: 50%;
+        }
+    }
+</style>

@@ -1,0 +1,70 @@
+---
+interface Props {
+	images: string[];
+}
+
+const { images } = Astro.props;
+---
+
+<swiper-container
+	slides-per-view="1"
+	navigation="true"
+	loop="true"
+	autoplay-delay="5000"
+	class="rounded-md shadow-lg overflow-hidden w-full animate-fade-in-up animate-delay-1000!"
+>
+	{images.map((src) => (
+		<swiper-slide>
+			<img
+				src={src}
+				class="w-full h-60 md:h-170 object-cover"
+				loading="lazy"
+				alt={src}
+				title={src.split('/').pop()}
+			/>
+		</swiper-slide>
+	))}
+</swiper-container>
+
+<script>
+	import { register } from 'swiper/element/bundle';
+	register();
+</script>
+
+<style>
+	swiper-container::part(button-prev) {
+		padding: 16px 2px;
+		background-color: rgb(0,0,0, 0.2);
+		color: white;
+	}
+
+	swiper-container::part(button-prev):hover,
+	swiper-container::part(button-next):hover {
+		transform: scale(1.1);
+	}
+
+	swiper-container::part(button-prev):active,
+	swiper-container::part(button-next):active {
+		transform: scale(0.9);
+	}
+
+	swiper-container::part(button-prev),
+	swiper-container::part(button-next) {
+		transition: transform .1s ease;
+	}
+
+	swiper-container::part(button-next) {
+		padding: 16px 2px;
+		background-color: rgb(0,0,0, 0.2);
+		color: white;
+	}
+
+	@media screen and (max-width: 768px) {
+		swiper-container::part(button-next),
+		swiper-container::part(button-prev) {
+			width: 30px;
+			height: 25px;
+		}
+	}
+
+</style>

@@ -1,0 +1,275 @@
+---
+type ProfileWithEmail = {
+    id: string;
+    name: string | null;
+    surname: string | null;
+    second_surname: string | null;
+    email: string;
+    created_at: string;
+};
+
+
+
+import { getSupabaseServerClient } from "../lib/supabase";
+
+const { className = "" } = Astro.props;
+
+const user = Astro.locals.user;
+const supabase = getSupabaseServerClient(Astro);
+let id = null;
+
+const { data, error } = await supabase.rpc("get_profiles_with_email");
+
+if(error) {
+    console.log(error);
+}
+const profiles = (data ?? []) as ProfileWithEmail[];
+
+
+
+function setId(identificador: string) {
+    id = identificador;
+}
+---
+
+<div
+    id="delete-error"
+    class="hidden animate-fade-in-down m-2 fixed top-0 left-1/2 -translate-x-1/2 mx-auto z-10000 w-auto p-2 bg-red-200 rounded-lg border border-red-600/40"
+>
+    <span
+        class="text-red-500 text-center flex flex-row gap-2 justify-center items-center"
+    >
+        <i class="icon-[icon-park-solid--error]"></i>
+        Error a la hora de eliminar usuario
+    </span>
+</div>
+
+<div class=`${className}`>
+    {
+        error ? (
+            <div class="w-full flex flex-col justify-center items-center py-20">
+                <div class="flex flex-col justify-center items-center animate-zoom-in">
+                    <h1 class="text-3xl text-red-500 uppercase py-2">
+                        Error al cargar los usuarios
+                    </h1>
+
+                    <span class="text-base text-red-400">
+                        {error.code.toUpperCase() === "PGRST205"
+                            ? "Error al acceder a la tabla de usuarios"
+                            : "Error desconocido"}
+                    </span>
+                </div>
+            </div>
+        ) : (
+            <div class="w-full flex flex-col animate-fade-in-up gap-5">
+                {profiles.map((profile) => {
+                    return (
+                        <div class="opacity-0 duration-500 user-card w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-0 p-4 bg-white rounded-lg shadow-lg md:shadow-md hover:shadow-md shadow-black/15 transition-all hover:scale-101" id={profile.id}>
+                            <div class="flex flex-col md:flex-row items-start md:items-center md:gap-3">
+                                <div class="flex flex-row justify-center items-center gap-2">
+                                    <span class="text-gray-800 font-medium profile-name">
+                                        {profile.name || "Nombre no disponible"}
+                                    </span>
+
+                                    { user?.id === profile.id && (
+                                        <span class="px-2 py-0.5 bg-blue-100 text-blue-700 md:my-0 my-2 flex md:hidden rounded-full text-xs font-medium">
+                                            Tú
+                                        </span>
+                                    )}
+                                </div>
+                                <span class="text-gray-500 text-sm">
+                                    ({profile.email})
+                                </span>
+                                {  user?.id === profile.id && (
+                                    <span class="px-2 py-0.5 bg-blue-100 text-blue-700 md:my-0 my-2 hidden md:flex rounded-full text-xs font-medium">
+                                        Tú
+                                    </span>
+                                )}
+                            </div>
+                            <div class="flex flex-col md:flex-row items-start md:items-center md:gap-3">
+                                <span class="text-gray-600 text-sm flex flex-row gap-3">
+                                    <span class="px-2 py-px bg-blue-900 text-white rounded-full">
+                                        Fecha de registro
+                                    </span>
+                                    <span class="font-medium">
+                                        {new Date(
+                                            profile.created_at,
+                                        ).toLocaleDateString("es-ES", {
+                                            year: "numeric",
+                                            month: "long",
+                                            day: "numeric",
+                                        })}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="w-full flex md:hidden py-2">
+                                <div class="w-full h-px bg-black/15 rounded-full" />
+                            </div>
+                            <div class="flex flex-col md:flex-row items-start md:items-center md:gap-3">
+                                <div class="w-full flex flex-row justify-center items-center text-sm gap-3">
+                                    <a
+                                        href={`/dashboard/users/editar-usuario?id=${profile.id}`}
+                                        class="bg-white border border-blue-900/20 hover:border-blue-900 hover:text-white hover:bg-blue-900 p-2 rounded-lg text-black transition-all cursor-pointer"
+                                    >
+                                        Editar
+                                    </a>
+                                    <button
+                                        type="button"
+                                        class="delete-user-btn bg-red-500 p-2 rounded-lg border text-white border-red-500 cursor-pointer transition-all hover:bg-red-600"
+                                        data-id={profile.id}
+                                    >
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        )
+    }
+</div>
+
+<div
+    class="form-card animate-duration-200 fixed delete-user-form top-0 left-0 z-9998 w-full h-dvh hidden justify-center items-center backdrop-blur-2xl"
+>
+    <form
+        action="/api/eliminar-usuario"
+        class="rounded-lg shadow-md shadow-black/15 w-full md:max-w-xl mx-auto bg-white flex flex-col justify-center items-center p-4"
+        method="POST"
+        id="delete-form"
+    >
+        <input type="hidden" name="id" id="delete-user-id" />
+
+        <h2 class="text-black/60 text-base">
+            ¿Estás seguro de que deseas eliminar este usuario?
+            <span
+                class="block md:inline-flex text-red-500 text-sm my-2 flex-row justify-center items-center gap-2"
+            >
+                <i class="icon-[vaadin--exclamation]"></i>
+                Esta acción no se puede deshacer.
+            </span>
+        </h2>
+        <div
+            class="w-full flex flex-col md:flex-row justify-end items-center md:gap-2 pt-7"
+        >
+            <button
+                type="submit"
+                class="cursor-pointer hover:-translate-y-0.5 w-full md:w-auto bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg mt-4 md:mt-0 transition-all"
+            >
+                Eliminar usuario
+            </button>
+            <button
+                type="button"
+                id="cancel-delete"
+                class="cursor-pointer hover:-translate-y-0.5 w-full md:w-auto bg-gray-200 hover:bg-gray-300 text-black md:text-black/60 hover:text-black/90 p-2 rounded-lg mt-4 md:mt-0 md:mr-2 transition-all"
+            >
+                Cancelar
+            </button>
+        </div>
+    </form>
+</div>
+
+<script is:inline>
+    document.addEventListener("astro:page-load", () => {
+        const userCards = document.querySelectorAll(".user-card");
+        const deleteButtons = document.querySelectorAll(".delete-user-btn");
+        const alertError = document.getElementById("delete-error");
+        const cancelBtn = document.querySelector("#cancel-delete");
+        const deleteForm = document.getElementById("delete-form");
+        const hiddenInput = document.getElementById("delete-user-id");
+
+        if (!deleteButtons || !alertError || !cancelBtn || !userCards || !hiddenInput) return;
+
+        cancelBtn.addEventListener("click", () => {
+            const deleteForm = document.querySelector(".delete-user-form");
+            deleteForm.classList.remove("animate-fade-in");
+            deleteForm.classList.add("animate-fade-out");
+            setTimeout(() => {
+                deleteForm.classList.add("hidden");
+                deleteForm.classList.remove("flex", "animate-fade-out");
+            }, 600);
+        });
+
+
+        userCards.forEach((card, index) => {
+            card.style.transitionDelay = `${index * 120}ms`;
+        });
+
+        deleteButtons.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const userId = btn.dataset.id;
+                hiddenInput.value = userId;
+                const deleteForm = document.querySelector(".delete-user-form");
+                deleteForm.classList.remove("hidden");
+                deleteForm.classList.add("flex", "animate-fade-in");
+
+                const cancelBtn = deleteForm.querySelector("#cancel-delete");
+                cancelBtn.addEventListener("click", () => {
+                    deleteForm.classList.add("hidden");
+                });
+            });
+        });
+
+        if (alertError) {
+            alertError.classList.remove("animate-fade-in-down");
+            alertError.classList.add("animate-fade-in-up");
+            setTimeout(() => {
+                alertError.classList.add("hidden");
+            }, 600);
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.remove(
+                            "opacity-0",
+                            "translate-y-4",
+                        );
+                        entry.target.classList.add(
+                            "opacity-100",
+                            "translate-y-0",
+                        );
+                        observer.unobserve(entry.target);
+                    }
+                });
+            },
+            { threshold: 0.15 },
+        );
+
+        userCards.forEach((card) => observer.observe(card));
+
+        deleteForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = new FormData(deleteForm);
+            const userId = formData.get("id");
+            try {
+                const res = await fetch(deleteForm.action, {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!res.ok) alertError.classList.remove("hidden");
+
+                const deleteUserForm = document.querySelector(".delete-user-form");
+                setTimeout(() => {
+                    deleteUserForm.classList.remove('flex', 'animate-fade-in');
+                    deleteUserForm.classList.add('hidden');
+                }, 0);
+
+                const userCard = document.getElementById(userId);
+                userCard.style.transition = "opacity 300ms, transform 300ms";
+                userCard.style.opacity = "0";
+                userCard.style.transform = "scale(0.95)";
+
+                setTimeout(() => userCard.remove(), 300);
+
+  
+            } catch (err) {
+                alertError.classList.remove("hidden");
+                console.error(err);
+            }
+        });
+    });
+</script>

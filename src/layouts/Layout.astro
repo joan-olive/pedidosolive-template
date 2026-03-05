@@ -1,0 +1,80 @@
+---
+export const prerender = false;
+
+import Analytics from '@vercel/analytics/astro';
+import "../styles/global.css";
+import { ClientRouter } from "astro:transitions";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import ArrowTop from '../components/ArrowTop.astro';
+import CookiesConsent from '../components/CookiesConsent.astro';
+
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es-ES">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="Joan Olivé S.L. ofrece servicios profesionales de calidad. Solicita tu pedido online.">
+		<meta name="keywords" content="Joan Olivé, Joan Olivé S.L., servicios profesionales, pedidos, empresa, viruta Joan Olive SL, virutas Joan Olive SL, viruta, balas de viruta, balas de viruta Joan Olive SL, viruta Palau-solita i Plegamans, balas de viruta Palau-solita i Plegamans, balas de viruta">
+		<meta name="author" content="Joan Olivé S.L.">
+		<meta name="robots" content="index, follow">
+		<meta property="og:type" content="website">
+		<meta property="og:title" content="Joan Olivé S.L. · Servicios profesionales">
+		<meta property="og:description" content="Servicios profesionales de confianza. Haz tu pedido hoy mismo con Joan Olivé S.L.">
+		<meta property="og:url" content="https://pedidosolive.vercel.app">
+		<meta property="og:image" content="https://pedidosolive.vercel.app/public/web.png">
+		<meta name="twitter:card" content="summary_large_image">
+		<meta name="twitter:title" content="Joan Olivé S.L. · Servicios profesionales">
+		<meta name="twitter:description" content="Servicios profesionales de confianza. Solicita tu pedido online.">
+		<meta name="twitter:image" content="https://pedidosolive.vercel.app/public/web.png">
+		<meta property="og:site_name" content="Joan Olivé · Servicios profesionales de viruta">
+		<meta property="og:image:alt" content="Joan Olivé - Servicios profesionales de viruta">
+
+		<link rel="icon" type="image/svg+xml" href="/favicon.png" />
+		<title>Joan Olivé - {title}</title>
+		<ClientRouter />
+		<Analytics />
+	</head>
+	<body>
+		<Header />
+		<main class="w-full flex flex-1">
+			<slot />
+		</main>
+		<Footer />
+
+		<ArrowTop />
+		<CookiesConsent />
+	</body>
+</html>
+
+<style is:global>
+	::-webkit-scrollbar {
+		width: 8px;
+		height: 8px;
+	}
+
+	::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	::-webkit-scrollbar-thumb {
+		background-color: #012b6d;
+		border-radius: 4px;
+	}
+
+
+	html { width: 100%; min-height: 100vh; height: 100%; }
+
+	html, body {
+		font-family: 'open sans','HelveticaNeue','Helvetica Neue','Helvetica-Neue',Helvetica,Arial,sans-serif;
+	}
+
+	body {
+		overflow-x: hidden;
+	}
+</style>

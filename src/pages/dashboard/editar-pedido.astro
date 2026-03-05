@@ -1,0 +1,1040 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { getSupabaseServerClient } from "../../lib/supabase";
+
+const card = Astro.url.searchParams.get("card");
+
+const supabase = getSupabaseServerClient(Astro);
+let { data: pedido, error } = await supabase
+    .from("orders")
+    .select("*")
+    .eq("id", card)
+    .single();
+
+if (error || !pedido) {
+    return Astro.redirect("/dashboard");
+}
+
+let success = false;
+const user = Astro.locals.user;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+let officeUser = null;
+let errorMessage = "";
+
+let fieldValues = {
+    scheduled_for: "",
+    company_name: "",
+    contact_name: "",
+    contact_surname: "",
+    contact_email: "",
+    contact_phone: "",
+    order_details: "",
+};
+
+let fieldErrors = {
+    scheduled_for: false,
+    company_name: false,
+    contact_name: false,
+    contact_surname: false,
+    contact_email: false,
+    contact_phone: false,
+    order_details: false,
+};
+
+if (pedido.office_order_id) {
+    const { data } = await supabase
+        .from("profiles")
+        .select("id, name, surname")
+        .eq("id", pedido.office_order_id)
+        .single();
+
+    if (data) officeUser = data;
+}
+
+if (Astro.request.method === "POST") {
+    const formData = await Astro.request.formData();
+
+    const scheduled_for =
+        formData.get("scheduled_for")?.toString().trim() ?? "";
+    const company_name = formData.get("company_name")?.toString().trim() ?? "";
+    const contact_name = formData.get("contact_name")?.toString().trim() ?? "";
+    const contact_surname =
+        formData.get("contact_surname")?.toString().trim() ?? "";
+    const contact_email =
+        formData.get("contact_email")?.toString().trim() ?? "";
+    const contact_phone =
+        formData.get("contact_phone")?.toString().replace(/\D/g, "").trim() ??
+        "";
+    const order_details =
+        formData.get("order_details")?.toString().trim() ?? "";
+
+    fieldValues = {
+        scheduled_for,
+        company_name,
+        contact_name,
+        contact_surname,
+        contact_email,
+        contact_phone,
+        order_details,
+    };
+
+    // 🔎 Validación campo a campo
+    if (!company_name) fieldErrors.company_name = true;
+    // if (!contact_name) fieldErrors.contact_name = true;
+    // if (!contact_surname) fieldErrors.contact_surname = true;
+    // if (!contact_email) fieldErrors.contact_email = true;
+    // if (!contact_phone) fieldErrors.contact_phone = true;
+    if (!order_details) fieldErrors.order_details = true;
+
+    // 🔎 Email válido
+    if (contact_email && !emailRegex.test(contact_email)) {
+        fieldErrors.contact_email = true;
+        errorMessage = "El correo electrónico no es válido";
+    }
+    // 🔎 Teléfono válido (España)
+    if (contact_phone && !/^\d{9}$/.test(contact_phone)) {
+        fieldErrors.contact_phone = true;
+        errorMessage = "Teléfono no válido";
+    }
+
+    const errorCount = Object.values(fieldErrors).filter(Boolean).length;
+
+    if (!errorMessage) {
+        if (errorCount === Object.keys(fieldErrors).length) {
+            errorMessage = "Todos los campos son obligatorios";
+        } else if (errorCount > 0) {
+            errorMessage = "Hay campos obligatorios sin rellenar";
+        }
+    }
+
+    // ✅ UPDATE
+    if (!errorMessage) {
+        const { error: updateError } = await supabase
+            .from("orders")
+            .update({
+                scheduled_for,
+                company_name,
+                contact_name,
+                contact_surname,
+                contact_email,
+                contact_phone,
+                order_details,
+            })
+            .eq("id", pedido.id);
+
+        if (!updateError) {
+            success = true;
+
+            const { data: updatedPedido } = await supabase
+                .from("orders")
+                .select("*")
+                .eq("id", pedido.id)
+                .single();
+
+            if (updatedPedido) {
+                pedido = updatedPedido; // Actualizar los datos cuando se realiza el update
+            }
+        } else {
+            errorMessage =
+                "Ha ocurrido un error al actualizar el pedido. Inténtalo de nuevo.";
+        }
+    }
+}
+
+function formatPhone(phone?: string | null) {
+    return (phone ?? "")
+        .replace(/(\d{3})(\d)/, "$1 $2")
+        .replace(/(\d{3}) (\d{3})(\d)/, "$1 $2 $3");
+}
+---
+
+<Layout title="Editar pedido">
+    <div
+        class="min-h-screen w-full flex flex-col items-center justify-center px-4 pt-20 md:pt-15 bg-gray-50 pb-20"
+    >
+        <header
+            class="flex flex-col gap-3 my-7 md:mt-14 w-full md:w-5xl mx-auto"
+        >
+            <h1
+                class="text-4xl font-semibold tracking-wide text-gray-900 uppercase animate-fade-in"
+            >
+                Edidar pedido registrado
+            </h1>
+            <p
+                class="text-gray-600 text-base max-w-3xl leading-relaxed animate-fade-in animate-delay-100"
+            >
+                Editar el pedido seleccionado, registrado en la agenda
+            </p>
+        </header>
+        <div class="w-full md:max-w-2xl mx-auto">
+            {
+                success && (
+                    <div class="w-full flex justify-center items-center">
+                        <div class="rounded-lg p-6 flex flex-col justify-center items-center gap-4 animate-fade-in">
+                            <i class="icon-[pajamas--check-circle] text-green-500 text-4xl" />
+                            <h3 class="text-green-700 text-lg font-medium">
+                                ¡Servicio actualizado con éxito!
+                            </h3>
+                            <p class="text-green-700/60 text-center max-w-md">
+                                El pedido ha sido actualizado con éxito.
+                            </p>
+                        </div>
+                    </div>
+                )
+            }
+            {
+                errorMessage && (
+                    <div class="w-full flex flex-row justify-center items-center pt-2 pb-6 animate-fade-in">
+                        <div class="bg-red-500/20 flex-1 h-px" />
+                        <span class="text-red-500 text-center text-sm flex justify-center items-center gap-1 px-3">
+                            <i class="icon-[pajamas--error]" />
+                            {errorMessage}
+                        </span>
+                        <div class="bg-red-500/20 flex-1 h-px" />
+                    </div>
+                )
+            }
+            <form
+                id="editar-pedido-form"
+                class="bg-white rounded-xl shadow-lg border border-black/10 md:p-6 p-4 space-y-6 animate-fade-in-up"
+                method="POST"
+            >
+                <div class="flex justify-between items-start">
+                    <h2 class="text-lg font-semibold text-gray-900 uppercase">
+                        Datos de pedido
+                    </h2>
+                    {
+                        pedido.stage === "PENDING" && (
+                            <span class="text-xs px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 font-medium flex justify-center items-center gap-1">
+                                <i class="icon-[lsicon--sand-glass-outline]" />
+                                Pendiente
+                            </span>
+                        )
+                    }
+
+                    {
+                        pedido.stage === "CURRENT" && (
+                            <span class="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-medium flex justify-center items-center gap-1">
+                                <i class="icon-[svg-spinners--clock]" />
+                                En curso
+                            </span>
+                        )
+                    }
+
+                    {
+                        pedido.stage === "FINISHED" && (
+                            <span class="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700 font-medium flex justify-center items-center gap-1">
+                                <i class="icon-[material-symbols--check]" />
+                                Finalizado
+                            </span>
+                        )
+                    }
+                </div>
+                <div class="w-full flex justify-center items-center">
+                    <div
+                        class="w-full h-px bg-black/15 rounded-full origin-center animate-width"
+                    >
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label
+                            class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                            for="company_name"
+                        >
+                            Cliente
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="Empresa"
+                            name="company_name"
+                            value={pedido.company_name}
+                            class="original w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm edit-form-input"
+                        />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label
+                                class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                                for="contact_name"
+                            >
+                                Nombre
+                            </label>
+                            <input
+                                type="text"
+                                value={pedido.contact_name}
+                                placeholder="Nombre de contacto"
+                                name="contact_name"
+                                class="original w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm edit-form-input"
+                            />
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                                for="contact_surname"
+                            >
+                                Apellidos
+                            </label>
+                            <input
+                                type="text"
+                                value={pedido.contact_surname}
+                                placeholder="Apellidos"
+                                name="contact_surname"
+                                class="original w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm edit-form-input"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label
+                            class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                            for="contact_email"
+                        >
+                            Email
+                        </label>
+                        <input
+                            type="text"
+                            value={pedido.contact_email}
+                            placeholder="Correo electrónico"
+                            name="contact_email"
+                            class="original w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm edit-form-input"
+                        />
+                    </div>
+
+                    <div>
+                        <label
+                            class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                            for="contact_phone"
+                        >
+                            Teléfono
+                        </label>
+                        <div class="relative">
+                            <input
+                                type="text"
+                                placeholder="Teléfono de contacto"
+                                value={formatPhone(pedido.contact_phone)}
+                                class="original w-full rounded-lg border border-gray-200 bg-gray-50 pl-13 pr-3 py-2 text-sm edit-form-input"
+                                name="contact_phone"
+                                id="contact_phone"
+                            />
+                            <span
+                                class="absolute text-sm top-1/2 left-0 -translate-y-1/2 text-blue-950/80 px-2 border-r border-r-black/20"
+                            >
+                                +34
+                            </span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label
+                            class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                            for="order_details"
+                        >
+                            Servicio solicitado
+                        </label>
+                        <textarea
+                            rows="4"
+                            name="order_details"
+                            value={pedido.order_details}
+                            placeholder="Servicio solicitado"
+                            class="original w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm resize-none edit-form-input"
+                            >{pedido.order_details}</textarea
+                        >
+                    </div>
+                </div>
+
+                <div
+                    class="flex justify-between items-center text-xs text-gray-500 pt-2"
+                >
+                    <div class="flex flex-col gap-1 py-2">
+                        <span
+                            class="text-xs font-semibold text-gray-500 uppercase"
+                        >
+                            Fecha de pedido
+                        </span>
+                        <input
+                            type="datetime-local"
+                            value={new Date(pedido.scheduled_for)
+                                .toISOString()
+                                .slice(0, 16)}
+                            name="scheduled_for"
+                            class="original w-auto rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 edit-form-input cursor-default"
+                        />
+                    </div>
+
+                    {
+                        !pedido.isClient ? (
+                            officeUser?.id === user?.id ? (
+                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-900 font-medium">
+                                    <i class="icon-[mdi--office-building]" />
+                                    Oficina · Tú
+                                </span>
+                            ) : (
+                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-50 text-blue-900 font-medium">
+                                    <i class="icon-[mdi--office-building]" />
+                                    Oficina · {officeUser?.name}{" "}
+                                    {officeUser?.surname}
+                                </span>
+                            )
+                        ) : (
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-600 italic">
+                                <i class="icon-[mdi--account]" />
+                                Cliente
+                            </span>
+                        )
+                    }
+                </div>
+
+                <div
+                    class="flex justify-start w-full md:justify-end gap-2 pt-4"
+                >
+                    <button
+                        disabled
+                        id="saveButton"
+                        type="submit"
+                        class="cursor-not-allowed opacity-50 md:w-auto w-full px-4 md:py-2 py-3 rounded-lg bg-[#013485] hover:bg-[#012b6d] text-white text-sm font-medium transition-all"
+                    >
+                        Guardar cambios
+                    </button>
+                </div>
+            </form>
+
+            <div class="flex justify-end items-center px-2 py-4">
+                <div class="flex lfex-row justify-center items-center gap-1">
+                    <span class="text-xs font-semibold uppercase text-gray-500 mb-1">
+                        Fecha de registro
+                    </span>
+                    <span class="text-xs text-gray-500 p-2 rounded-md shadow shadow-black/10 bg-white">
+                        {
+                            pedido.created_at
+                                ? new Date(pedido.created_at).toLocaleString(
+                                      "es-ES",
+                                      {
+                                          day: "2-digit",
+                                          month: "2-digit",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                          second: "2-digit",
+                                      },
+                                  )
+                                : "Desconocida"
+                        }
+                    </span>
+                </div>
+            </div>
+
+            <div
+                class="relative flex flex-col items-start mt-4"
+                aria-label="Información adicional de los pedidos - botón"
+            >
+                <button
+                    type="button"
+                    id="specifications_btn"
+                    class="relative text-base text-gray-800 hover:text-[#013485] transition-colors rounded-lg cursor-pointer flex flex-row justify-center items-center gap-1 border-none outline-none"
+                >
+                    Información adicional
+                    <i
+                        id="specifications_icon"
+                        class="icon-[line-md--chevron-right] text-sm transition-transform group-hover:-translate-x-1"
+                    ></i>
+                </button>
+
+                <div
+                    id="specifications_panel"
+                    class="hidden absolute left-0 bottom-full md:bottom-auto mb-3 md:top-1/2 md:-translate-y-1/2 md:left-43 z-9999 p-4 rounded-xl bg-white md:bg-white/50 shadow shadow-black/20 md:animate-fade-in-right animate-fade-in-up backdrop-blur-xl md:w-auto w-full justify-start items-start flex-col animate-duration-200 md:animate-duration-200"
+                >
+                    <form id="specifications_form" class="flex flex-col gap-2">
+                        <input
+                            type="hidden"
+                            name="specs_id"
+                            id="specs_id"
+                            value={pedido.id}
+                        />
+                        <div
+                            class="w-full flex flex-col md:flex-row justify-center items-start gap-3"
+                        >
+                            <div
+                                class="flex flex-col justify-center items-start w-full"
+                            >
+                                <label
+                                    for="box_type"
+                                    class="text-gray-500 text-xs uppercase font-semibold md:mx-0 mx-3"
+                                >
+                                    Volumen de caja
+                                </label>
+                                <div
+                                    class="relative w-full md:w-44"
+                                    id="boxVolumeWrapper"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="box_volume"
+                                        id="box_volume"
+                                        value={pedido.box_volume ?? ""}
+                                    />
+
+                                    <button
+                                        type="button"
+                                        id="boxVolumeButton"
+                                        class="w-full flex items-center justify-between bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg text-sm hover:border-[#01348580] transition-all cursor-pointer outline-none"
+                                    >
+                                        <div
+                                            class="flex flex-row justify-center items-center"
+                                        >
+                                            <span
+                                                id="boxVolumeLabel"
+                                                class="pr-px"
+                                            >
+                                                {
+                                                    pedido.box_volume ??
+                                                        "Sin especificar"
+                                                }
+                                            </span>
+                                            {
+                                                pedido.box_volume && (
+                                                    <div class="flex flex-row justify-center items-center">
+                                                        m
+                                                        <sup class="text-[9px]">
+                                                            3
+                                                        </sup>
+                                                    </div>
+                                                )
+                                            }
+                                        </div>
+                                        <i
+                                            id="boxVolumeIcon"
+                                            class="icon-[mdi--chevron-down] transition-transform duration-200"
+                                        ></i>
+                                    </button>
+
+                                    <div
+                                        aria-label="Box volume dropdown"
+                                        id="boxVolumeDropdown"
+                                        class="absolute left-0 w-full bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 scale-95 pointer-events-none transition-all duration-150 z-50"
+                                    >
+                                        <ul class="py-1 text-sm">
+                                            <li
+                                                data-value=""
+                                                class={`px-3 py-2 cursor-pointer transition-colors
+                                                ${
+                                                    !pedido.box_volume
+                                                        ? "bg-gray-200"
+                                                        : "hover:bg-gray-100"
+                                                }
+                                                `}
+                                            >
+                                                Sin especificar
+                                            </li>
+
+                                            <li
+                                                data-value="30"
+                                                class={`
+                                                px-3 py-2 cursor-pointer transition-colors
+                                                ${
+                                                    pedido.box_volume != null &&
+                                                    Number(
+                                                        pedido.box_volume,
+                                                    ) === 30
+                                                        ? "bg-gray-200"
+                                                        : "hover:bg-gray-100"
+                                                }
+                                                `}
+                                            >
+                                                30m<sup class="text-[9px]"
+                                                    >3</sup
+                                                >
+                                            </li>
+
+                                            <li
+                                                data-value="45"
+                                                class={`px-3 py-2 cursor-pointer transition-colors
+                                                ${
+                                                    pedido.box_volume != null &&
+                                                    Number(
+                                                        pedido.box_volume,
+                                                    ) === 45
+                                                        ? "bg-gray-200"
+                                                        : "hover:bg-gray-100"
+                                                }
+                                                `}
+                                            >
+                                                45m<sup class="text-[9px]"
+                                                    >3</sup
+                                                >
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div
+                                class="flex flex-col justify-center items-start w-full"
+                            >
+                                <label
+                                    for="company_type"
+                                    class="text-gray-500 text-xs uppercase font-semibold md:mx-0 mx-3"
+                                >
+                                    Tipo de empresa
+                                </label>
+                                <div
+                                    class="relative md:w-44 w-full"
+                                    id="companyTypeWrapper"
+                                >
+                                    <input
+                                        type="hidden"
+                                        name="company_type"
+                                        id="company_type"
+                                        value={pedido.company_type ?? ""}
+                                    />
+                                    <button
+                                        type="button"
+                                        id="companyTypeButton"
+                                        class="w-full flex items-center justify-between bg-gray-50 border border-gray-200 px-3 py-2 rounded-lg text-sm hover:border-[#01348580] transition-all cursor-pointer outline-none"
+                                    >
+                                        <span id="companyTypeLabel">
+                                            {
+                                                pedido.company_type ??
+                                                    "Sin especificar"
+                                            }
+                                        </span>
+
+                                        <i
+                                            id="companyTypeIcon"
+                                            class="icon-[mdi--chevron-down] transition-transform duration-200"
+                                        ></i>
+                                    </button>
+
+                                    <div
+                                        aria-label="Company type dropdown"
+                                        id="companyTypeDropdown"
+                                        class="absolute left-0 w-full bg-white border border-gray-200 rounded-xl shadow-xl opacity-0 scale-95 pointer-events-none transition-all duration-150 z-50"
+                                    >
+                                        <ul class="py-1 text-sm">
+                                            <li
+                                                data-value=""
+                                                class={`px-3 py-2 cursor-pointer transition-colors
+                                                ${
+                                                    !pedido.company_type
+                                                        ? "bg-gray-200"
+                                                        : "hover:bg-gray-100"
+                                                }
+                                                `}
+                                            >
+                                                Sin especificar
+                                            </li>
+
+                                            <li
+                                                data-value="HIPICA"
+                                                class={`px-3 py-2 cursor-pointer transition-colors
+                                                ${
+                                                    pedido.company_type ===
+                                                    "HIPICA"
+                                                        ? "bg-gray-200"
+                                                        : "hover:bg-gray-100"
+                                                }
+                                                `}
+                                            >
+                                                HIPICA
+                                            </li>
+
+                                            <li
+                                                data-value="GRANJA"
+                                                class={`px-3 py-2 cursor-pointer transition-colors
+                                                ${
+                                                    pedido.company_type ===
+                                                    "GRANJA"
+                                                        ? "bg-gray-200"
+                                                        : "hover:bg-gray-100"
+                                                }
+                                                `}
+                                            >
+                                                GRANJA
+                                            </li>
+                                            <li
+                                                data-value="EMPRESA"
+                                                class={`px-3 py-2 cursor-pointer transition-colors
+                                                ${
+                                                    pedido.company_type ===
+                                                    "EMPRESA"
+                                                        ? "bg-gray-200"
+                                                        : "hover:bg-gray-100"
+                                                }
+                                                `}
+                                            >
+                                                EMPRESA
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                {
+                    (pedido.box_volume || pedido.company_type) && (
+                        <div class="flex flex-col justify-center items-center">
+                            {pedido.box_volume && (
+                                <div class="w-full flex flex-col justify-center items-start">
+                                    <span class="text-sm text-black/70 italic">
+                                        <div class="flex flex-row gap-0.5">
+                                            {pedido.box_volume}
+                                            <span>
+                                                m<sup class="text-[9px]">3</sup>
+                                            </span>
+                                        </div>
+                                    </span>
+                                </div>
+                            )}
+                            {pedido.company_type && (
+                                <div class="w-full flex flex-col justify-center items-start">
+                                    <span class="text-sm text-black/70 italic">
+                                        {pedido.company_type}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )
+                }
+            </div>
+            <div
+                class="flex flex-col-reverse md:gap-0 gap-8 md:flex-row justify-between mt-7 md:mt-3 items-center"
+            >
+                <a
+                    href="/dashboard"
+                    class="text-black/60 transition-all group flex flex-row justify-center items-center gap-1"
+                >
+                    <i
+                        class="icon-[line-md--chevron-left] text-sm transition-transform group-hover:-translate-x-1"
+                    ></i>
+                    <span class="text-base"> Volver al panel de pedidos </span>
+                </a>
+
+                <form id="stage-form">
+                    <input type="hidden" name="id" value={pedido.id} />
+                    <label
+                        class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                        for="stage"
+                    >
+                        Estado del pedido
+                    </label>
+
+                    <div class="relative">
+                        <select
+                            name="stage"
+                            id="stage"
+                            class="original appearance-none w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 pr-10 text-sm edit-form-input cursor-pointer group"
+                        >
+                            <option
+                                value="PENDING"
+                                selected={pedido.stage === "PENDING"}
+                            >
+                                🕒 Pendiente
+                            </option>
+                            <option
+                                value="CURRENT"
+                                selected={pedido.stage === "CURRENT"}
+                            >
+                                ⚙️ En curso
+                            </option>
+                            <option
+                                value="FINISHED"
+                                selected={pedido.stage === "FINISHED"}
+                            >
+                                ✅ Finalizado
+                            </option>
+                        </select>
+
+                        <span
+                            class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                        >
+                            <i class="icon-[mdi--chevron-down]"></i>
+                        </span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</Layout>
+
+<script is:inline>
+    document.addEventListener("astro:page-load", () => {
+        const form = document.getElementById("editar-pedido-form");
+        const phoneInput = document.getElementById("contact_phone");
+        const saveButton = document.getElementById("saveButton");
+        const stage = document.getElementById("stage");
+        const stageForm = document.getElementById("stage-form");
+        const boxWrapper = document.getElementById("boxVolumeWrapper");
+        const boxButton = document.getElementById("boxVolumeButton");
+        const boxDropdown = document.getElementById("boxVolumeDropdown");
+        const boxIcon = document.getElementById("boxVolumeIcon");
+        const boxHiddenInput = document.getElementById("box_volume");
+        const boxLabel = document.getElementById("boxVolumeLabel");
+        const specs_btn = document.getElementById("specifications_btn");
+        const specs_panel = document.getElementById("specifications_panel");
+        const companyTypeWrapper =
+            document.getElementById("companyTypeWrapper");
+        const companyTypeButton = document.getElementById("companyTypeButton");
+        const companyTypeDropdown = document.getElementById(
+            "companyTypeDropdown",
+        );
+        const companyTypeIcon = document.getElementById("companyTypeIcon");
+        const companyTypeHiddenInput = document.getElementById("company_type");
+        const companyTypeLabel = document.getElementById("companyTypeLabel");
+        const specifications_icon = document.getElementById(
+            "specifications_icon",
+        );
+        const specifications_form = document.getElementById(
+            "specifications_form",
+        );
+        const orderId = document.getElementById("specs_id")?.value;
+
+        function updateSpecifications() {
+            const formData = new FormData();
+            formData.append("id", orderId);
+            formData.append("box_volume", boxHiddenInput.value || "");
+            formData.append("company_type", companyTypeHiddenInput.value || "");
+
+            fetch("/api/set-specifications", {
+                method: "POST",
+                body: formData,
+            }).then((res) => {
+                if (!res.ok) {
+                    alert("Error actualizando especificaciones");
+                    return;
+                }
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                window.location.reload();
+            });
+        }
+
+        boxDropdown.querySelectorAll("li").forEach((item) => {
+            item.addEventListener("click", () => {
+                const value = item.dataset.value;
+
+                boxHiddenInput.value = value;
+                boxLabel.textContent = value || "Sin especificar";
+
+                boxDropdown.classList.add(
+                    "opacity-0",
+                    "scale-95",
+                    "pointer-events-none",
+                );
+                boxIcon.classList.remove("rotate-180");
+
+                updateSpecifications();
+            });
+        });
+
+        companyTypeDropdown.querySelectorAll("li").forEach((item) => {
+            item.addEventListener("click", () => {
+                const value = item.dataset.value;
+
+                companyTypeHiddenInput.value = value;
+                companyTypeLabel.textContent = value || "Sin especificar";
+
+                companyTypeDropdown.classList.add(
+                    "opacity-0",
+                    "scale-95",
+                    "pointer-events-none",
+                );
+                companyTypeIcon.classList.remove("rotate-180");
+
+                updateSpecifications();
+            });
+        });
+
+        let specsOpen = false;
+        specs_btn.addEventListener("click", () => {
+            specsOpen = !specsOpen;
+            const wind_X = window.innerWidth;
+            specs_panel.classList.toggle("hidden");
+            if (specsOpen) {
+                specs_btn.classList.add("text-[#013485]!");
+            } else {
+                specs_btn.classList.remove("text-[#013485]!");
+            }
+
+            if (wind_X < 768) {
+                if (specsOpen) {
+                    specifications_icon.classList.add("-rotate-90");
+                } else {
+                    specifications_icon.classList.remove("-rotate-90");
+                }
+            } else {
+                if (specsOpen) {
+                    specifications_icon.classList.add("rotate-180");
+                } else {
+                    specifications_icon.classList.remove("rotate-180");
+                }
+            }
+        });
+
+        if (stage) {
+            stage.addEventListener("change", async () => {
+                const formData = new FormData(stageForm);
+
+                const res = await fetch("/api/set-stage", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!res.ok) {
+                    alert("Error actualizando estado");
+                    return;
+                }
+
+                window.scrollTo({ top: 0, behavior: "smooth" });
+                window.location.reload();
+            });
+        }
+
+        if (!form || !saveButton) return;
+
+        const fields = Array.from(
+            form.querySelectorAll("input.original, textarea.original"),
+        );
+        const initialValues = new Map();
+        fields.forEach((field) => {
+            initialValues.set(field.name, field.value);
+        });
+
+        const hasChanges = () => {
+            return fields.some(
+                (field) => initialValues.get(field.name) !== field.value,
+            );
+        };
+
+        if (phoneInput) {
+            phoneInput.addEventListener("input", (e) => {
+                const input = e.target;
+                let value = input.value.replace(/\D/g, "").slice(0, 9);
+
+                const formatted = value
+                    .replace(/(\d{3})(\d)/, "$1 $2")
+                    .replace(/(\d{3}) (\d{3})(\d)/, "$1 $2 $3");
+
+                input.value = formatted;
+            });
+        }
+
+        const updateButtonState = () => {
+            if (hasChanges()) {
+                saveButton.disabled = false;
+                saveButton.classList.remove(
+                    "cursor-not-allowed",
+                    "bg-[#013485]/50",
+                    "opacity-50",
+                );
+                saveButton.classList.add("bg-[#013485]", "cursor-pointer");
+            } else {
+                saveButton.disabled = true;
+                saveButton.classList.add(
+                    "cursor-not-allowed",
+                    "bg-[#013485]/50",
+                    "opacity-50",
+                );
+                saveButton.classList.remove("bg-[#013485]", "cursor-pointer");
+            }
+        };
+
+        fields.forEach((field) => {
+            field.addEventListener("input", updateButtonState);
+            field.addEventListener("change", updateButtonState);
+        });
+
+        phoneInput.addEventListener("input", (e) => {
+            const input = e.target;
+            let value = input.value.replace(/\D/g, "").slice(0, 9);
+
+            const formatted = value
+                .replace(/(\d{3})(\d)/, "$1 $2")
+                .replace(/(\d{3}) (\d{3})(\d)/, "$1 $2 $3");
+
+            input.value = formatted;
+        });
+
+        if (boxButton) {
+            boxButton.addEventListener("click", () => {
+                boxDropdown.classList.toggle("opacity-0");
+                boxDropdown.classList.toggle("scale-95");
+                boxDropdown.classList.toggle("pointer-events-none");
+                boxIcon.classList.toggle("rotate-180");
+            });
+
+            boxDropdown.querySelectorAll("li").forEach((item) => {
+                item.addEventListener("click", () => {
+                    const value = item.dataset.value;
+
+                    boxHiddenInput.value = value;
+                    boxLabel.textContent = value || "Sin especificar";
+
+                    boxDropdown.classList.add(
+                        "opacity-0",
+                        "scale-95",
+                        "pointer-events-none",
+                    );
+                    boxIcon.classList.remove("rotate-180");
+                });
+            });
+
+            document.addEventListener("click", (e) => {
+                if (!boxWrapper.contains(e.target)) {
+                    boxDropdown.classList.add(
+                        "opacity-0",
+                        "scale-95",
+                        "pointer-events-none",
+                    );
+                    boxIcon.classList.remove("rotate-180");
+                }
+            });
+        }
+
+        if (companyTypeButton) {
+            companyTypeButton.addEventListener("click", () => {
+                companyTypeDropdown.classList.toggle("opacity-0");
+                companyTypeDropdown.classList.toggle("scale-95");
+                companyTypeDropdown.classList.toggle("pointer-events-none");
+                companyTypeIcon.classList.toggle("rotate-180");
+            });
+
+            companyTypeDropdown.querySelectorAll("li").forEach((item) => {
+                item.addEventListener("click", () => {
+                    const value = item.dataset.value;
+
+                    companyTypeHiddenInput.value = value;
+                    companyTypeLabel.textContent = value || "Sin especificar";
+
+                    companyTypeDropdown.classList.add(
+                        "opacity-0",
+                        "scale-95",
+                        "pointer-events-none",
+                    );
+                    companyTypeIcon.classList.remove("rotate-180");
+                });
+            });
+
+            document.addEventListener("click", (e) => {
+                if (!companyTypeWrapper.contains(e.target)) {
+                    companyTypeDropdown.classList.add(
+                        "opacity-0",
+                        "scale-95",
+                        "pointer-events-none",
+                    );
+                    companyTypeIcon.classList.remove("rotate-180");
+                }
+            });
+        }
+    });
+</script>
+
+<style>
+    .edit-form-input:focus {
+        outline: none;
+        border-color: #01348580;
+        box-shadow: 0 0 0 2px rgba(1, 52, 133, 0.15);
+        transition: all 0.2s ease-in-out;
+    }
+</style>

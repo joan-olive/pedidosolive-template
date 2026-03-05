@@ -1,0 +1,23 @@
+---
+import Layout from "../Layout.astro";
+
+const { title = "Área Entrada" } = Astro.props;
+const user = Astro.locals.user;
+const path = Astro.url.pathname;
+const base_URL = "/dashboard";
+
+const LINKS = [
+    { name: "Pedidos", href: `${base_URL}` },
+    { name: "Agregar pedido", href: `${base_URL}/agregar-pedido` },
+];
+---
+
+<Layout title={title}>
+    <div class="w-full bg-gray-50 pt-15 px-2 md:px-4">
+
+        
+        <section class="w-full flex flex-co">
+            <slot />
+        </section>
+    </div>
+</Layout>

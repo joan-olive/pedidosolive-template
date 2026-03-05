@@ -1,0 +1,543 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { getSupabaseServerClient } from "../lib/supabase";
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+let success = false;
+let errorMessage = "";
+
+let fieldErrors = {
+	company_name: false,
+	contact_name: false,
+	// contact_surname: false,
+	contact_email: false,
+	contact_phone: false,
+	order_details: false,
+};
+
+let formValues = {
+	company_name: "",
+	contact_name: "",
+	// contact_surname: "",
+	contact_email: "",
+	contact_phone: "",
+	order_details: "",
+};
+
+const savedCookie = Astro.cookies.get("order-form-data")?.value;
+
+let savedValues = {
+	company_name: "",
+	contact_name: "",
+	// contact_surname: "",
+	contact_email: "",
+	contact_phone: "",
+};
+
+if (savedCookie) {
+	try {
+		savedValues = JSON.parse(savedCookie);
+	} catch {
+		savedValues = {
+			company_name: "",
+			contact_name: "",
+			// contact_surname: "",
+			contact_email: "",
+			contact_phone: "",
+		};
+	}
+}
+
+if (Astro.request.method === "POST") {
+	const supabase = getSupabaseServerClient(Astro);
+	const data = await Astro.request.formData();
+	const now = Date.now();
+
+	// 🕵️ Anti-bot (tiempo)
+	const startedAt = Number(data.get("form_started_at"));
+	if (!startedAt || now - startedAt < 4000) {
+		errorMessage = "Solicitud inválida";
+	}
+
+	// 🕵️ Honeypot
+	const honeypot = data.get("company_website");
+	if (honeypot) {
+		errorMessage = "Solicitud inválida";
+	}
+
+	const company_name = data.get("company_name")?.toString().trim() ?? "";
+	const contact_name = data.get("contact_name")?.toString().trim() ?? "";
+	// const contact_surname = data.get("contact_surname")?.toString().trim() ?? "";
+	const contact_email = data.get("contact_email")?.toString().trim() ?? "";
+	const contact_phone =
+		data.get("contact_phone")?.toString().replace(/\D/g, "").trim() ?? "";
+	const order_details = data.get("order_details")?.toString().trim() ?? "";
+	const remember = data.get("remember");
+
+	formValues = {
+		company_name,
+		contact_name,
+		// contact_surname,
+		contact_email,
+		contact_phone,
+		order_details,
+	};
+
+	// 🔎 Validación campo a campo
+	if (!company_name) fieldErrors.company_name = true;
+	if (!contact_name) fieldErrors.contact_name = true;
+	// if (!contact_surname) fieldErrors.contact_surname = true;
+	if (!contact_email) fieldErrors.contact_email = true;
+	if (!contact_phone) fieldErrors.contact_phone = true;
+	if (!order_details) fieldErrors.order_details = true;
+
+	// 🔎 Email válido
+	if (contact_email && !emailRegex.test(contact_email)) {
+		fieldErrors.contact_email = true;
+		errorMessage = "El correo electrónico no es válido";
+	}
+
+	// 🔎 Teléfono válido (España)
+	if (contact_phone && !/^\d{9}$/.test(contact_phone)) {
+		fieldErrors.contact_phone = true;
+		errorMessage = "Teléfono no válido";
+	}
+
+	// 🚦 Rate-limit por email
+	if (contact_email) {
+		const { count } = await supabase
+			.from("orders")
+			.select("*", { count: "exact", head: true })
+			.eq("contact_email", contact_email);
+
+		if (count && count > 3) {
+			errorMessage = "Demasiados envíos desde este correo";
+		}
+	}
+
+	const errorCount = Object.values(fieldErrors).filter(Boolean).length;
+
+	if (!errorMessage) {
+		if (errorCount === Object.keys(fieldErrors).length) {
+			errorMessage = "Todos los campos son obligatorios";
+		} else if (errorCount > 0) {
+			errorMessage = "Hay campos obligatorios sin rellenar";
+		}
+	}
+
+	// ✅ INSERT
+	if (!errorMessage) {
+		const { error } = await supabase.from("orders").insert({
+			company_name,
+			contact_name,
+			// contact_surname,
+			contact_email,
+			contact_phone,
+			order_details,
+			isClient: true,
+			office_order_id: null,
+			stage: "PENDING",
+		});
+
+		if (error) {
+			console.error(error);
+			errorMessage = "No se pudo registrar el pedido";
+		} else {
+			success = true;
+			formValues = {
+				company_name: "",
+				contact_name: "",
+				// contact_surname: "",
+				contact_email: "",
+				contact_phone: "",
+				order_details: "",
+			};
+
+			if (remember) {
+				if (remember) {
+					Astro.cookies.set(
+						"order-form-data",
+						JSON.stringify({
+							company_name,
+							contact_name,
+							// contact_surname,
+							contact_email,
+							contact_phone,
+						}),
+						{
+							path: "/",
+							maxAge: 60 * 60 * 24 * 365,
+							secure: true,
+							sameSite: "lax",
+						},
+					);
+				}
+			}
+		}
+	}
+}
+
+function formatPhone(phone?: string) {
+	if (!phone) return "";
+
+	const clean = phone.replace(/\D/g, "").slice(0, 9);
+
+	return clean
+		.replace(/(\d{3})(\d)/, "$1 $2")
+		.replace(/(\d{3}) (\d{3})(\d)/, "$1 $2 $3");
+}
+---
+
+<Layout title="Solicitar pedido">
+	<div class="w-full flex-1 bg-gray-50 pt-28 pb-20">
+		<div class="max-w-4xl mx-auto px-4">
+			{/* HEADER */}
+			<div class={`${errorMessage ? "mb-10" : ""}`}>
+				<h2 class="text-3xl font-semibold text-gray-900 mb-2">
+					Haz tu pedido hoy mismo
+				</h2>
+				<p class="text-gray-600 max-w-2xl">
+					Completa el siguiente formulario y tu pedido quedará
+					registrado en nuestra agenda. Nos pondremos en contacto
+					contigo si necesitamos más información.
+				</p>
+			</div>
+
+			<div
+				class={`${errorMessage ? "hidden" : "flex"} w-full h-px bg-black/10 my-6`}
+			>
+			</div>
+
+			{
+				success && (
+					<div class="w-full flex justify-center items-center">
+						<div class="rounded-lg p-6 flex flex-col justify-center items-center gap-4 animate-fade-in">
+							<i class="icon-[pajamas--check-circle] text-green-500 text-4xl" />
+							<h3 class="text-green-700 text-lg font-medium">
+								¡Servicio registrado con éxito!
+							</h3>
+							<p class="text-green-700/60 text-center max-w-md">
+								Tu pedido ha sido registrado correctamente.
+								<span class="block text-center">
+									Gracias por confiar en nosotros.
+								</span>
+							</p>
+						</div>
+					</div>
+				)
+			}
+
+			{
+				errorMessage && (
+					<div class="w-full flex flex-row justify-start items-center pt-2 pb-6 animate-fade-in">
+						<div class="bg-red-500/20 flex-1 h-px max-w-20" />
+						<span class="text-red-500 text-sm flex justify-start items-center gap-1 px-3">
+							<i class="icon-[pajamas--error]" />
+							{errorMessage}
+						</span>
+						<div class="bg-red-500/20 flex-1 h-px" />
+					</div>
+				)
+			}
+
+			{/* FORMULARIO */}
+			<div
+				class="bg-white rounded-2xl shadow-lg shadow-black/5 p-6 md:p-10 animate-fade-in-up"
+			>
+				<form
+					class="space-y-8"
+					transition:name="pedido"
+					method="POST"
+					id="solicitar-pedido-form"
+				>
+					<input
+						type="hidden"
+						name="form_started_at"
+						value={Date.now()}
+					/>
+					<input
+						type="text"
+						name="company_website"
+						tabindex="-1"
+						autocomplete="off"
+						class="hidden"
+					/>
+
+					<div class="w-full flex justify-end items-center">
+						<span class="text-sm text-gray-500 italic">
+							Los campos marcados con
+							<span class="text-red-500">*</span> son
+							<b>obligatorios</b>.
+						</span>
+					</div>
+
+					{/* DATOS DE LA EMPRESA */}
+					<div>
+						<h3
+							class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4"
+						>
+							Datos de la empresa
+						</h3>
+
+						<div class="flex flex-col gap-4">
+							<div class="w-full md:w-xs">
+								<label class="form-label" for="company_name">
+									Nombre de la empresa
+									<span class="text-base text-red-500">*</span
+									>
+								</label>
+								<input
+									type="text"
+									name="company_name"
+									class={`form-input ${fieldErrors.company_name ? "border-red-500!" : ""}`}
+									placeholder="Empresa S.L."
+									value={formValues.company_name ||
+										savedValues.company_name ||
+										""}
+								/>
+							</div>
+
+							<h3
+								class="text-sm font-semibold uppercase tracking-wider text-gray-500 mt-4"
+							>
+								Persona de contacto
+							</h3>
+							<div class="flex flex-col md:flex-row gap-2">
+								<div class="w-full md:w-xs">
+									<label
+										class="form-label"
+										for="contact_name"
+									>
+										Nombre
+										<span class="text-base text-red-500"
+											>*</span
+										>
+									</label>
+									<input
+										type="text"
+										name="contact_name"
+										class={`form-input ${fieldErrors.contact_name ? "border-red-500!" : ""}`}
+										placeholder="Nombre"
+										value={formValues.contact_name ||
+											savedValues.contact_name ||
+											""}
+									/>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="w-full h-px bg-black/10"></div>
+
+					{/* DETALLES DE CONTACTO */}
+					<div>
+						<h3
+							class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4"
+						>
+							Datos de contacto
+						</h3>
+
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+							<div>
+								<label class="form-label" for="contact_email">
+									Correo electrónico
+									<span class="text-base text-red-500">*</span
+									>
+								</label>
+								<input
+									type="email"
+									name="contact_email"
+									class={`form-input ${fieldErrors.contact_email ? "border-red-500!" : ""}`}
+									placeholder="empresa@dominio.com"
+									value={formValues.contact_email ||
+										savedValues.contact_email ||
+										""}
+								/>
+							</div>
+
+							<div>
+								<label class="form-label" for="contact_phone">
+									Teléfono
+									<span class="text-base text-red-500">*</span
+									>
+								</label>
+								<div class="relative">
+									<span
+										class="absolute text-sm top-1/2 -translate-y-1/2 text-blue-950/80 px-2 border-r border-r-black/20"
+									>
+										+34
+									</span>
+									<input
+										type="text"
+										name="contact_phone"
+										class={`form-input pl-13! ${fieldErrors.contact_phone ? "border-red-500!" : ""}`}
+										placeholder="000 000 000"
+										value={formatPhone(formValues.contact_phone || savedValues.contact_phone || "")}
+										id="contact_phone"
+									/>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="w-full h-px bg-black/10"></div>
+
+					{/* DETALLES DEL PEDIDO */}
+					<div>
+						<div class="mt-6">
+							<h3
+								class="text-sm font-semibold uppercase tracking-wider text-gray-500 mb-4"
+							>
+								Detalles del pedido
+								<span class="text-base text-red-500">*</span>
+							</h3>
+							<textarea
+								name="order_details"
+								rows="4"
+								class={`form-input resize-none ${fieldErrors.order_details ? "border-red-500!" : ""}`}
+								placeholder="Indica que tipo de servicio está solicitando"
+								value={formValues.order_details}></textarea>
+						</div>
+					</div>
+
+					<div
+						class="relative w-full flex justify-center items-start flex-col"
+					>
+						<label
+							class="flex items-center justify-between cursor-pointer select-none gap-2"
+						>
+							<span class="text-gray-600 text-sm"
+								>Recordar los datos introducidos</span
+							>
+
+							<div class="relative outline-none">
+								<input
+									type="checkbox"
+									name="remember"
+									class="peer sr-only outline-none"
+								/>
+
+								<div
+									class="w-11 h-6 bg-gray-300 rounded-full
+										   transition-colors duration-200
+										   peer-checked:bg-[#013485]
+										   peer-focus:ring-2 peer-focus:ring-[#013485]/30"
+								>
+								</div>
+
+								<div
+									class="absolute top-0.5 left-0.5
+										   w-5 h-5 bg-white rounded-full shadow-md
+										   transition-all duration-200
+										   peer-checked:translate-x-5"
+								>
+								</div>
+							</div>
+						</label>
+					</div>
+
+					{/* CTA */}
+					<div
+						class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-6 border-t border-gray-200"
+					>
+						<p
+							class="text-sm text-gray-500 flex items-center gap-1"
+						>
+							<i class="icon-[proicons--info] text-blue-500"></i>
+							Al enviar este formulario aceptas que gestionemos tu solicitud.
+						</p>
+
+						{/* BOTÓN DE ENVIAR */}
+						<button
+							type="submit"
+							class="inline-flex items-center justify-center
+								px-8 py-3 rounded-lg gap-2
+								bg-[#013485] text-white font-medium
+								shadow-md shadow-blue-900/30
+								hover:bg-[#012b6d]
+								transition-all
+                                cursor-pointer
+                                hover:-translate-y-0.5
+                                md:w-auto
+                                w-full"
+						>
+							Registrar pedido
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</Layout>
+
+<script is:inline>
+	document.addEventListener("astro:page-load", () => {
+		const inputPhone = document.getElementById("contact_phone");
+		const form = document.getElementById("solicitar-pedido-form");
+		const submitBtn = form?.querySelector("button[type='submit']");
+
+		if (!inputPhone || !form) return;
+
+		let isSubmitting = false;
+		if (!submitBtn) return;
+		form.addEventListener("submit", () => {
+			if (isSubmitting) return;
+
+			isSubmitting = true;
+			submitBtn.disabled = true;
+			submitBtn.classList.add("opacity-50", "cursor-not-allowed");
+			submitBtn.innerHTML = `
+				<span>Enviando</span> 
+				<div id="loader" class="size-5 rounded-full border-2 border-white/40 border-t-white"></div>
+			`;
+		});
+
+		inputPhone.addEventListener("input", (e) => {
+			const input = e.target;
+			let value = input.value.replace(/\D/g, "").slice(0, 9);
+
+			const formatted = value
+				.replace(/(\d{3})(\d)/, "$1 $2")
+				.replace(/(\d{3}) (\d{3})(\d)/, "$1 $2 $3");
+
+			input.value = formatted;
+		});
+	});
+</script>
+
+<style>
+	.form-label {
+		display: block;
+		margin-bottom: 6px;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #374151;
+	}
+
+	.form-input {
+		width: 100%;
+		padding: 0.75rem 0.875rem;
+		border-radius: 0.5rem;
+		border: 1px solid #d1d5db;
+		font-size: 0.95rem;
+		transition: all 0.15s ease;
+	}
+
+	.form-input:focus {
+		outline: none;
+		border-color: #013485;
+		box-shadow: 0 0 0 2px rgba(1, 52, 133, 0.15);
+	}
+
+	#loader {
+		animation: loader 1s linear infinite;
+		transform: rotate(0deg);
+	}
+
+	@keyframes loader {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+</style>

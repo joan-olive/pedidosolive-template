@@ -1,0 +1,25 @@
+<button
+    id="topButton"
+    class="flex justify-center items-center size-10 rounded-md fixed bottom-5 right-5 bg-black/80 backdrop-blur-md cursor-pointer border border-transparent outline-none transition-all hover:scale-110 active:scale-90 opacity-0 pointer-events-none"
+>
+    <i class="icon-[line-md--chevron-up] text-white text-base"></i>
+</button>
+
+<script is:inline>
+    document.addEventListener("astro:page-load", () => {
+        const button = document.querySelector("button#topButton");
+        button.addEventListener("click", () => {
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+
+        window.addEventListener("scroll", () => {
+            if (window.scrollY > 300) {
+                button.classList.remove("opacity-0", "pointer-events-none", "animate-zoom-out");
+                button.classList.add("opacity-100", "pointer-events-auto", "animate-pulse-fade-in");
+            } else {
+                button.classList.remove("opacity-100", "pointer-events-auto", "animate-pulse-fade-in");
+                button.classList.add("opacity-0", "pointer-events-none", "animate-zoom-out");
+            }
+        });
+    });
+</script>

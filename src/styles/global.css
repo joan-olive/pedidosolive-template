@@ -1,0 +1,33 @@
+@import "tailwindcss";
+@plugin '@midudev/tailwind-animations';
+@plugin "@iconify/tailwind4";
+
+@utility animate-width {
+    animation: widthAnimation 1s ease-in-out forwards;
+}
+
+@utility animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes widthAnimation {
+    from {
+        width: 0;
+    }
+    to {
+        width: 100%;
+    }
+}
+
+body {
+    @apply min-h-screen flex flex-col relative overflow-x-hidden;
+}

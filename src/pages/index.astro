@@ -1,0 +1,162 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Carousel from "../components/Carousel.astro";
+import { getSupabaseServerClient } from "../lib/supabase";
+
+
+const images = [
+	"/img/slider/camion-joan-olive.jpg",
+	"/img/slider/camion-sin-contenedor.jpg",
+	"/img/slider/camion-remolque.jpg",
+	"/img/slider/balas_de_viruta_empaquetadas.jfif",
+	"/img/slider/balas_de_viruta_en_palets.jfif",
+	"/img/slider/balast_de_viruta_fs.jfif",
+	"/img/slider/proceso_de_colocacion_balas_de_viruta_pt2.jfif",
+	"/img/slider/proceso_de_colocacion_balas_de_viruta.jfif",
+	"/img/slider/viruta_para_balas_de_viruta.jfif",
+
+];
+
+const supabase = getSupabaseServerClient(Astro);
+const {
+	data: { session },
+} = await supabase.auth.getSession();
+
+if (session) {
+	return Astro.redirect("/dashboard");
+}
+---
+
+<Layout title="Pedidos">
+	<div class="flex justify-center items-start w-full flex-1 bg-gray-50">
+		<div class="w-full max-w-6xl mx-auto flex flex-col px-3 md:px-6 py-20">
+			{/* CABECERA */}
+			<div class="flex flex-col gap-3 my-7 md:my-14">
+				<h1
+					class="text-4xl font-semibold tracking-wide text-gray-900 uppercase animate-fade-in"
+				>
+					Servicios
+					<span class="block md:inline-flex"> Joan Olivé, S.L. </span>
+				</h1>
+				<p
+					class="text-gray-600 text-base max-w-3xl leading-relaxed animate-fade-in animate-delay-100"
+				>
+					Ahora registrar tu pedido en la agenda de nuestra empresa se
+					puede hacer de manera fácil y sencilla, y sobre todo online
+					y disponible 24/7.
+				</p>
+			</div>
+
+			{/* CTA */}
+			<div
+				class="flex flex-col md:flex-row items-start md:items-center gap-4 mb-14 animate-fade-in animate-delay-400"
+				transition:name="pedido"
+			>
+				<span class="text-[#013485] font-medium">
+					Pídenos el servicio directamente desde aquí
+				</span>
+
+				<div>
+					<a
+						href="/solicitar-pedido"
+						class="inline-flex items-center justify-center px-6 py-3 rounded-lg
+						bg-[#013485] text-white font-medium
+						shadow-md shadow-blue-900/20
+						hover:bg-[#012b6d] hover:shadow-lg
+						hover:-translate-y-1
+						transition-all duration-200 animate-fade-in-down md:animate-zoom-in animate-delay-700!"
+					>
+						Solicitar el servicio
+					</a>
+				</div>
+			</div>
+
+			{/*  SEPARADOR */}
+			<div class="w-full h-px bg-gray-200 my-10"></div>
+
+			{/* CARRUSEL DE IMAGENES */}
+			<Carousel images={[...images]} />
+
+			{/* MÁS INFORMACIÓN */}
+			<div class="flex flex-col gap-4 mt-10">
+				<h3
+					class="text-sm font-semibold uppercase tracking-wider text-gray-500"
+				>
+					Para más información
+				</h3>
+
+				<div class="flex flex-wrap items-center gap-4" id="web-links">
+					<a
+						href="http://www.joanolive.com/"
+						target="_blank"
+						class="inline-flex items-center gap-2 px-4 py-3 rounded-lg
+						bg-white border border-gray-200
+						text-[#013485] font-medium
+						shadow-sm hover:shadow-md
+						hover:bg-gray-50
+						transition-all duration-200 group"
+					>
+						Joan Olivé S.L.
+						<i
+							class="icon-[majesticons--open] text-lg group-hover:translate-x-px group-hover:-translate-y-px transition-transform"
+						></i>
+					</a>
+
+					<a
+						href="https://balasdeviruta.com/"
+						target="_blank"
+						class="text-gray-600 md:px-0 px-4 font-medium hover:text-[#013485] transition-colors duration-200 flex items-center gap-2 group"
+					>
+						Balas de viruta
+						<i
+							class="icon-[majesticons--open] text-lg group-hover:translate-x-px group-hover:-translate-y-px transition-transform"
+						></i>
+					</a>
+				</div>
+			</div>
+		</div>
+	</div>
+</Layout>
+
+<script is:inline>
+	document.addEventListener("astro:page-load", () => {
+		const webLinks = document.getElementById("web-links");
+		if(!webLinks) return;
+
+		const observer = new IntersectionObserver((entries) => {
+			entries.forEach((entry) => {
+				if (entry.isIntersecting) {
+					entry.target
+						.querySelectorAll("a")
+						.forEach((link, index) => {
+							const delay = 250 * index;
+							if (index === 0) {
+								link.classList.add("animate-fade-in");
+							} else {
+								link.classList.add("animate-fade-in");
+								link.style.animationDelay = `${delay}ms`;
+							}
+						});
+
+					observer.unobserve(entry.target);
+				}
+			});
+		}, 				
+		{
+			threshold: 0.15,
+		});
+
+		observer.observe(webLinks);
+	});
+</script>
+
+<style>
+	@keyframes expand-width {
+		from {
+			width: 0;
+		}
+		to {
+			width: 50%;
+		}
+	}
+</style>

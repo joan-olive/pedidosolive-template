@@ -1,0 +1,277 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { getSupabaseServerClient } from "../../lib/supabase";
+
+const supabase = getSupabaseServerClient(Astro);
+
+let errorMessage = "";
+let emptyValues = {
+	email: false,
+	password: false,
+};
+
+let formValues = { email: "" };
+if (Astro.request.method === "POST") {
+	const data = await Astro.request.formData();
+	const email = String(data.get("email"));
+	const password = String(data.get("password"));
+	const remember = data.get("remember");
+	await supabase.auth.signOut();
+	Astro.cookies.delete("login-mode");
+
+	const { data: authData, error } = await supabase.auth.signInWithPassword({
+		email,
+		password,
+	});
+
+	if (error) {
+		if (!email) emptyValues.email = true;
+		if (!password) emptyValues.password = true;
+
+		formValues.email = email;
+		errorMessage = getAuthErrorMessage(error);
+		console.error(`ERROR: ${error.message}`);
+	} else {
+		if (remember) {
+			Astro.cookies.set("login-mode", "persistent", {
+				path: "/",
+				maxAge: 60 * 60 * 24 * 30,
+				secure: true,
+				sameSite: "lax",
+			});
+			Astro.cookies.set("last-email", email, {
+				path: "/",
+				maxAge: 60 * 60 * 24 * 365,
+				secure: true,
+				sameSite: "lax",
+			});
+		} else {
+			Astro.cookies.set("login-mode", "session", {
+				path: "/",
+				secure: true,
+				sameSite: "lax",
+			});
+		}
+		return Astro.redirect("/dashboard");
+	}
+}
+
+function getAuthErrorMessage(error: any): string {
+	if (!error) return "";
+
+	const msg = error.message?.toLowerCase() ?? "";
+
+	if (msg.includes("invalid login credentials")) {
+		return "El correo electrónico o la contraseña no son correctos.";
+	}
+
+	if (msg.includes("email not confirmed")) {
+		return "El correo electrónico todavía no ha sido confirmado.";
+	}
+
+	if (msg.includes("user not found")) {
+		return "El usuario no existe.";
+	}
+
+	if (msg.includes("too many requests")) {
+		return "Demasiados intentos. Inténtalo más tarde.";
+	}
+
+	if (msg.includes("missing email or phone")) {
+		return "Hay campos vacios sin rellenar";
+	}
+
+	// Fallback genérico (NUNCA mostrar el técnico)
+	return "No se ha podido iniciar sesión. Contacta con el administrador.";
+}
+---
+
+<Layout title="Acceso restringido">
+	<div class="w-full flex justify-center items-center pt-32 pb-24 bg-gray-50">
+		<div class="w-full max-w-lg px-4" transition:name="logged">
+			<div
+				class="bg-white rounded-2xl shadow-xl shadow-black/10 px-8 py-10"
+				transition:name="login"
+			>
+				{/* LOGO */}
+				<div class="flex justify-center mb-6">
+					<img
+						src="/joanolivesl-logotip.png"
+						alt="Joan Olivé S.L."
+						class="h-10 w-auto"
+					/>
+				</div>
+
+				{/* TÍTULO */}
+				<div class="text-center mb-8">
+					<h1 class="text-2xl font-semibold text-gray-900 mb-2">
+						Acceso restringido
+					</h1>
+					<p class="text-gray-600 text-sm">
+						Introduce tus credenciales para acceder al área privada.
+					</p>
+				</div>
+
+				{/* FORMULARIO */}
+				<form class="space-y-6" method="POST">
+					<div>
+						<label class="form-label" for="email">Usuario</label>
+						<input
+							type="email"
+							class={`form-input ${emptyValues.email ? "border! border-red-500!" : ""}`}
+							placeholder="usuario@empresa.com"
+							name="email"
+							value={formValues.email
+								? formValues.email
+								: (Astro.cookies.get("last-email")?.value ??
+									"")}
+						/>
+					</div>
+
+					<div>
+						<label class="form-label" for="password"
+							>Contraseña</label
+						>
+						<div class="relative">
+							<input
+								type="password"
+								class={`form-input ${emptyValues.password ? "border! border-red-500!" : ""} pr-11!`}
+								placeholder="••••••••"
+								name="password"
+								autocomplete="off"
+							/>
+
+							<button
+								type="button"
+								id="eye-button"
+								class="absolute right-2 top-1/2 -translate-y-1/2 flex justify-center items-center p-1.5 rounded-full hover:bg-black/5"
+							>
+								<i class="icon-[gg--eye] text-lg text-black/60"
+								></i>
+							</button>
+						</div>
+					</div>
+
+					{
+						errorMessage && (
+							<div class="animate-fade-in-up flex justify-start items-center">
+								<div class="text-sm flex flex-wrap items-center gap-1.5">
+									<i class="icon-[pajamas--error] text-red-500" />
+									<span class="text-red-700">
+										{errorMessage}
+									</span>
+								</div>
+							</div>
+						)
+					}
+
+					<div class="flex items-center justify-between text-sm">
+						<label class="flex items-center justify-between cursor-pointer select-none gap-2">
+							<span class="text-gray-600 text-sm">Recordarme</span>
+						
+							<div class="relative outline-none">
+								<input
+									type="checkbox"
+									name="remember"
+									class="peer sr-only outline-none"
+								/>
+						
+								<div
+									class="w-11 h-6 bg-gray-300 rounded-full 
+										   transition-colors duration-200
+										   peer-checked:bg-[#013485]
+										   peer-focus:ring-2 peer-focus:ring-[#013485]/30"
+								></div>
+						
+								<div
+									class="absolute top-0.5 left-0.5 
+										   w-5 h-5 bg-white rounded-full shadow-md
+										   transition-all duration-200
+										   peer-checked:translate-x-5"
+								></div>
+							</div>
+						</label>
+
+						{/* 
+						<a
+							href="/forgot-password"
+							class="text-[#013485] hover:underline"
+						>
+							¿Has olvidado tu contraseña?
+						</a>
+						*/}
+					</div>
+
+					{/* BOTÓN DE ENTRADA */}
+					<button
+						type="submit"
+						class="w-full py-3 rounded-lg
+							bg-[#013485] text-white font-medium
+							shadow-md shadow-blue-900/30
+							hover:bg-[#012b6d]
+							transition-all
+                            hover:-translate-y-0.5
+                            cursor-pointer"
+					>
+						Acceder
+					</button>
+				</form>
+
+				<p class="text-xs text-gray-400 text-center mt-8">
+					Acceso exclusivo para personal autorizado.
+				</p>
+			</div>
+		</div>
+	</div>
+</Layout>
+
+<script is:inline>
+	document.addEventListener("astro:page-load", () => {
+		const eyeButton = document.getElementById("eye-button");
+		if (!eyeButton) return;
+
+		const input = eyeButton
+			.closest(".relative")
+			.querySelector("input[type='password'], input[type='text']");
+
+		const icon = eyeButton.querySelector("i");
+		if (!input || !icon) return;
+
+		let visible = false;
+
+		eyeButton.addEventListener("click", () => {
+			visible = !visible;
+
+			input.type = visible ? "text" : "password";
+
+			icon.className = visible
+				? "icon-[quill--eye-closed] text-lg text-black/60"
+				: "icon-[gg--eye] text-lg text-black/60";
+		});
+	});
+</script>
+
+<style>
+	.form-label {
+		display: block;
+		margin-bottom: 6px;
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #374151;
+	}
+
+	.form-input {
+		width: 100%;
+		padding: 0.75rem 0.875rem;
+		border-radius: 0.5rem;
+		border: 1px solid #d1d5db;
+		font-size: 0.95rem;
+		transition: all 0.15s ease;
+	}
+
+	.form-input:focus {
+		outline: none;
+		border-color: #013485;
+		box-shadow: 0 0 0 2px rgba(1, 52, 133, 0.15);
+	}
+</style>

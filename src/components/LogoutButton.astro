@@ -1,0 +1,9 @@
+---
+const { className = '' } = Astro.props;
+---
+
+<form method="POST" action="/auth/logout" class="m-0 p-0">
+    <button type="submit" class={className}>
+        <slot />
+    </button>
+</form>

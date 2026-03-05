@@ -1,0 +1,415 @@
+---
+import { getSupabaseServerClient } from "../lib/supabase";
+import WeekOrder from "./WeekOrder.astro";
+
+type Grouped = Record<
+    string,
+    {
+        label: string;
+        weeks: Record<number, typeof orders>;
+    }
+>;
+
+const { className = "" } = Astro.props;
+
+const user = Astro.locals.user;
+const supabase = getSupabaseServerClient(Astro);
+const { data: orders, error } = await supabase
+    .from("orders")
+    .select(
+        `
+        *,
+        office:profiles!orders_office_order_id_fkey (
+            id,
+            name,
+            surname
+        )
+        `,
+    )
+    .eq("is_archieve", false)
+    .order("scheduled_for", { ascending: false });
+
+if (error) {
+    console.error(error);
+}
+
+function getWeekOfMonth(date: Date): number {
+    const firstDayOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+    const firstDayWeekIndex =
+        firstDayOfMonth.getDay() === 0 ? 6 : firstDayOfMonth.getDay() - 1;
+    const dayOfMonth = date.getDate();
+    return Math.ceil((dayOfMonth + firstDayWeekIndex) / 7);
+}
+
+function getMonthKey(date: Date) {
+    return `${date.getFullYear()}-${date.getMonth()}`;
+}
+
+function formatMonthLabel(date: Date) {
+    const text = date.toLocaleDateString("es-ES", {
+        month: "long",
+    });
+    return text.toUpperCase();
+}
+
+const grouped: Grouped = {};
+
+orders?.forEach((order) => {
+    const date = new Date(order.scheduled_for);
+    if (isNaN(date.getTime())) return;
+
+    const monthKey = getMonthKey(date);
+    const week = getWeekOfMonth(date);
+
+    if (!grouped[monthKey]) {
+        grouped[monthKey] = {
+            label: formatMonthLabel(date),
+            weeks: {},
+        };
+    }
+
+    if (!grouped[monthKey].weeks[week]) {
+        grouped[monthKey].weeks[week] = [];
+    }
+
+    grouped[monthKey].weeks[week].push(order);
+});
+
+const groupedByYear: Record<string, typeof grouped> = {};
+
+Object.entries(grouped).forEach(([monthKey, monthGroup]) => {
+    const year = monthKey.split("-")[0];
+
+    if (!groupedByYear[year]) {
+        groupedByYear[year] = {};
+    }
+
+    groupedByYear[year][monthKey] = monthGroup;
+});
+
+function getMondayOfWeek(date: Date) {
+    const d = new Date(date);
+    const day = d.getDay() || 7;
+    if (day !== 1) {
+        d.setDate(d.getDate() - (day - 1));
+    }
+    return d;
+}
+
+function formatMondayLabel(date: Date) {
+    const text = date.toLocaleDateString("es-ES", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+    });
+
+    return text.charAt(0).toUpperCase() + text.slice(1);
+}
+---
+
+<div
+    id="delete-error"
+    class="hidden animate-fade-in-down m-2 fixed top-0 left-1/2 -translate-x-1/2 mx-auto z-10000 w-auto p-2 bg-red-200 rounded-lg border border-red-600/40"
+>
+    <span
+        class="text-red-500 text-center flex flex-row gap-2 justify-center items-center"
+    >
+        <i class="icon-[icon-park-solid--error]"></i>
+        Error a la hora de eliminar el pedido
+    </span>
+</div>
+
+<div
+    class="w-full hidden flex-col justify-center items-center py-15"
+    id="no-data-alert"
+>
+    <span class="text-black/60 text-xl"> Aun no hay pedidos registrados. </span>
+
+    <a
+        href="/dashboard/agregar-pedido"
+        class="text-sm mt-3 px-4 py-3 bg-[#013485] hover:bg-[#012b6d] transition-all hover:-translate-y-0.5 rounded-lg text-white"
+    >
+        Agrega uno
+    </a>
+</div>
+
+<div class={className}>
+    <div id="pedidos-list" class="flex flex-col gap-12 pb-10">
+        {
+            Object.entries(groupedByYear)
+                .sort(([a], [b]) => Number(b) - Number(a))
+                .map(([year, months]) => (
+                    <div
+                        class="relative year-group flex flex-col"
+                        data-year={year}
+                    >
+                        <div class="sticky top-14 z-9000 backdrop-blur-md py-4 flex items-center px-2">
+                            <span class="text-3xl font-black text-blue-900/60 pr-4">
+                                {year}
+                            </span>
+                            <div class="h-px bg-blue-900/10 flex-1" />
+                        </div>
+
+                        {Object.entries(months).map(([_, monthGroup]) => (
+                            <section class="relative flex flex-col gap-2 pt-3">
+                                <div class="w-full flex flex-row justify-start items-center">
+                                    <div class="pt-3 flex flex-row gap-2 justify-center items-center z-10">
+                                        <h2 class="text-xl font-bold tracking-wide text-gray-800 relative z-10">
+                                            {monthGroup.label}
+                                        </h2>
+                                        ·
+                                        <span class="text-sm text-gray-500">
+                                            {Object.values(
+                                                monthGroup.weeks,
+                                            ).reduce(
+                                                (acc, weekOrders) =>
+                                                    acc +
+                                                    (weekOrders?.length ?? 0),
+                                                0,
+                                            )}
+                                            {`${
+                                                Object.values(
+                                                    monthGroup.weeks,
+                                                ).reduce(
+                                                    (acc, weekOrders) =>
+                                                        acc +
+                                                        (weekOrders?.length ??
+                                                            0),
+                                                    0,
+                                                ) === 1
+                                                    ? " pedido"
+                                                    : " pedidos"
+                                            }`}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {Object.entries(monthGroup.weeks).map(
+                                    ([weekNumber, weekOrders]) => (
+                                        <WeekOrder
+                                            weekNumber={Number(weekNumber)}
+                                            weekOrders={
+                                                weekOrders as NonNullable<
+                                                    typeof orders
+                                                >
+                                            }
+                                            user={user}
+                                            getMondayOfWeek={getMondayOfWeek}
+                                            formatMondayLabel={
+                                                formatMondayLabel
+                                            }
+                                        />
+                                    ),
+                                )}
+                            </section>
+                        ))}
+                    </div>
+                ))
+        }
+    </div>
+</div>
+
+<script is:inline>
+    document.addEventListener("astro:page-load", () => {
+        const accordions = document.querySelectorAll(".accordion");
+
+        accordions.forEach((accordion) => {
+            const trigger = accordion.querySelector("[data-accordion-trigger]");
+            const content = accordion.querySelector("[data-accordion-content]");
+            const inner = accordion.querySelector("[data-accordion-inner]");
+            const chevron = accordion.querySelector("[data-chevron]");
+
+            let isOpen = true;
+            if (!trigger || !content || !inner) return;
+
+            const recalcHeight = () => {
+                if (!isOpen) return;
+                content.style.maxHeight = content.scrollHeight + "px";
+            };
+
+            const open = () => {
+                content.style.maxHeight = content.scrollHeight + "px";
+                content.style.opacity = "1";
+                trigger.classList.remove("rounded-lg");
+                trigger.classList.add("rounded-t-lg", "bg-gray-200/70");
+                chevron?.classList.add("rotate-180");
+                isOpen = true;
+            };
+
+            const close = () => {
+                content.style.maxHeight = "0px";
+                content.style.opacity = "0";
+                trigger.classList.remove("rounded-t-lg", "bg-gray-200/70");
+                trigger.classList.add("rounded-lg");
+                chevron?.classList.remove("rotate-180");
+                isOpen = false;
+            };
+
+            requestAnimationFrame(open);
+
+            trigger.addEventListener("click", () => {
+                if (isOpen) {
+                    close();
+                } else {
+                    open();
+                }
+            });
+
+            window.addEventListener("resize", recalcHeight);
+        });
+
+        const cards = Array.from(document.querySelectorAll(".card"));
+        const alertError = document.getElementById("delete-error");
+        const deleteBtns = document.querySelectorAll(".delete-order-button");
+        const cancelBtns = document.querySelectorAll(".cancel-delete");
+        const pedidosList = document.getElementById("pedidos-list");
+
+        if (!hasOrders(pedidosList)) {
+            const noDataAlert = document.getElementById("no-data-alert");
+            noDataAlert.classList.remove("hidden");
+            noDataAlert.classList.add("flex", "animate-fade-in");
+        }
+
+        cancelBtns.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const card = btn.closest("article");
+                const deleteForm = card.querySelector(".delete-order-form");
+                deleteForm.classList.remove("animate-fade-in");
+                deleteForm.classList.add("animate-fade-out");
+                setTimeout(() => {
+                    deleteForm.classList.add("hidden");
+                    deleteForm.classList.remove("flex", "animate-fade-out");
+                }, 600);
+            });
+        });
+
+        deleteBtns.forEach((btn) => {
+            btn.addEventListener("click", () => {
+                const card = btn.closest("article");
+                const deleteForms =
+                    document.querySelectorAll(".delete-order-form");
+                const deleteForm = card.querySelector(".delete-order-form");
+                deleteForms.forEach((form) => {
+                    form.classList.remove("flex", "animate-fade-in");
+                    form.classList.add("hidden");
+                });
+                deleteForm.classList.remove("hidden");
+                deleteForm.classList.add("flex", "animate-fade-in");
+            });
+        });
+
+        if (alertError) {
+            alertError.classList.remove("animate-fade-in-down");
+            alertError.classList.add("animate-fade-in-up");
+            setTimeout(() => {
+                alertError.classList.add("hidden");
+            }, 600);
+        }
+
+        if (!cards || !alertError || !deleteBtns) return;
+
+        cards.forEach((card, index) => {
+            card.style.transitionDelay = `${index * 120}ms`;
+        });
+
+        document.querySelectorAll(".delete-order-form").forEach((form) => {
+            form.addEventListener("submit", async (e) => {
+                e.preventDefault();
+                const formData = new FormData(form);
+
+                try {
+                    const res = await fetch(form.action, {
+                        method: "POST",
+                        body: formData,
+                    });
+
+                    if (!res.ok) alertError.classList.remove("hidden");
+
+                    const card = form.closest("article");
+                    card.style.transition = "opacity 300ms, transform 300ms";
+                    card.style.opacity = "0";
+                    card.style.transform = "scale(0.95)";
+
+                    setTimeout(() => {
+                        const accordion = card.closest(".accordion");
+                        const section = card.closest("section");
+
+                        card.remove();
+
+                        if (accordion) {
+                            const remainingCards =
+                                accordion.querySelectorAll("article");
+
+                            if (remainingCards.length === 0) {
+                                accordion.remove();
+                            } else {
+                                const content = accordion.querySelector(
+                                    "[data-accordion-content]",
+                                );
+                                const inner = accordion.querySelector(
+                                    "[data-accordion-inner]",
+                                );
+                                const trigger = accordion.querySelector(
+                                    "[data-accordion-trigger]",
+                                );
+
+                                if (content && inner && trigger) {
+                                    const isOpen =
+                                        trigger.classList.contains(
+                                            "rounded-t-lg",
+                                        );
+
+                                    if (isOpen) {
+                                        requestAnimationFrame(() => {
+                                            const newHeight =
+                                                inner.scrollHeight;
+                                            content.style.height = `${newHeight}px`;
+                                        });
+                                    }
+                                }
+                            }
+                        }
+
+                        if (section) {
+                            const remainingAccordions =
+                                section.querySelectorAll(".accordion");
+
+                            if (remainingAccordions.length === 0) {
+                                const yearGroup =
+                                    section.closest(".year-group");
+
+                                section.remove();
+
+                                if (yearGroup) {
+                                    const remainingSections =
+                                        yearGroup.querySelectorAll("section");
+
+                                    if (remainingSections.length === 0) {
+                                        yearGroup.remove();
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!hasOrders(pedidosList)) {
+                            const noDataAlert =
+                                document.getElementById("no-data-alert");
+                            noDataAlert.classList.remove("hidden");
+                            noDataAlert.classList.add(
+                                "flex",
+                                "animate-fade-in",
+                            );
+                        }
+                    }, 300);
+                } catch (err) {
+                    alertError.classList.remove("hidden");
+                    console.error(err);
+                }
+            });
+        });
+
+        function hasOrders(contenedor) {
+            return contenedor?.querySelector("article") !== null;
+        }
+    });
+</script>

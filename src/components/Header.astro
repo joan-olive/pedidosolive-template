@@ -1,0 +1,359 @@
+---
+import LogoutButton from "./LogoutButton.astro";
+
+const path = Astro.url.pathname;
+const user = Astro.locals.user;
+const isLogin = path.startsWith("/auth/login");
+const isPedido = path.includes("solicitar-pedido");
+---
+
+<header
+    class={`z-9999 fixed top-0 left-0 w-full flex flex-col items-center bg-white/15 backdrop-blur-2xl`}
+    aria-label="Capçalera de la pàgina"
+    id="header"
+>
+    <div
+        class="w-full md:max-w-6xl mx-auto flex flex-row justify-between items-center"
+    >
+        <div class="p-2">
+            <a href="/">
+                <img src="/joanolivesl-logotip.png" alt="Logotip" class="w-auto h-10" />
+            </a>
+        </div>
+
+        <!-- <div class="p-2 flex flex-col"></div> -->
+        { !user ? (
+            <div class="hidden md:flex">
+                {
+                    !isLogin ? (
+                        <div class="flex items-center gap-2">
+                            <a
+                                href="/auth/login"
+                                class="relative text-sm rounded-lg hover:bg-gray-500/10 p-2 transition-all text-black/70 hover:text-black/80 hidden md:flex items-center gap-1 md:gap-2 cursor-pointer"
+                                transition:name="login"
+                            >
+                                <i class="icon-[lucide--lock]" />
+                                Acceso restringido
+                            </a>
+        
+                            { isPedido && <div class="w-px h-4 bg-black/50"></div> }
+        
+                            {isPedido && (
+                                <a
+                                    href="/"
+                                    class="relative rounded-lg hover:bg-gray-500/10 p-2 transition-all text-black/70 hover:text-black/80 flex items-center gap-1 text-sm"
+                                >
+                                    Volver a inicio
+                                </a>
+                            )}
+                        </div>
+                    ) : (
+                        <a
+                            href="/"
+                            class="relative rounded-lg hover:bg-gray-500/10 p-2 transition-all text-black/70 hover:text-black/80 flex items-center gap-1 text-sm"
+                        >
+                            Volver a inicio 
+                        </a>
+                    )
+                }
+            </div>
+        ) : (
+            <div class="relative md:mx-0 mx-2">
+                <button type="button" class="flex flex-row justify-center items-center gap-2 hover:bg-gray-200/60 cursor-pointer px-3 py-1.5 md:px-2 md:py-1 transition-colors rounded-lg md:rounded-full border-none outline-none" id="profile-button" transition:name="logged">
+
+                    {/* AVATAR DE LA PERSONA AUTORIZADA */}
+                    <div
+                        id="profile-avatar"
+                        class="
+                            size-8
+                            rounded-full
+                            bg-[#013485]/10
+                            flex flex-row items-center justify-center
+                            font-semibold
+                            text-[#013485]
+                            text-sm
+                            uppercase
+                            gap-px
+                        "
+                    >
+                        <span>
+                            {user.name?.charAt(0)}
+                        </span>
+                        <span>
+                            {user.surname?.charAt(0)}
+                        </span>
+                    </div>
+
+                    {/* NOMBRE DE LA PERSONA AUTORIZADA */}
+                    <div class="flex">
+                        <span class="text-sm text-black/80">
+                            {user.name}
+                        </span>
+                    </div>
+                </button>
+
+                {/* PROFILE CONFIG */}
+                <div class="absolute top-full mt-1 right-0 min-w-60 w-full p-2 bg-white border border-black/10 rounded-xl shadow-md shadow-black/20 z-10000 hidden flex-col" aria-hidden="false" id="profile-config-container">
+                    <div class="w-full flex flex-row justify-center items-center gap-2 text-blue-900 font-bold">
+                        <span>
+                            {user.name}
+                        </span>
+                        <span>
+                            {user.surname}
+                        </span>
+                    </div>
+                    <div class="w-full flex flex-col justify-center items-center">
+                        <div class="w-full flex flex-row justify-center items-center gap-1 text-sm text-black/50">
+                            <span>
+                                {user.email}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="w-full flex flex-col px-1 pt-2 pb-5">
+                        <div class="w-full h-px bg-black/15 rounded-full"></div>
+                    </div>
+                    <a href="/dashboard/profile" class="w-full bg-transparent flex flex-row justify-start items-center p-2 rounded-lg border border-transparent gap-1 cursor-pointer hover:bg-gray-200 transition-all hover:brightness-102">
+                        <i class="icon-[iconoir--settings]" />
+                        <span class="text-sm text-left">
+                            Perfil
+                        </span>
+                    </a>
+                    <a href="/dashboard/users" class="w-full bg-transparent flex flex-row justify-start items-center p-2 rounded-lg border border-transparent gap-1 cursor-pointer hover:bg-gray-200 transition-all hover:brightness-102">
+                        <i class="icon-[material-symbols--manage-accounts-outline]" />
+                        <span class="text-sm text-left">
+                            Gestionar usuarios
+                        </span>
+                    </a>
+                    <div class="w-full flex flex-col px-1 py-2">
+                        <div class="w-full h-px bg-black/15 rounded-full"></div>
+                    </div>
+                    <LogoutButton className="w-full bg-red-200 text-red-500 flex flex-row justify-center items-center px-2 py-1 rounded-lg border border-transparent gap-1 cursor-pointer hover:-translate-y-px transition-all hover:brightness-102">
+                        <i class="icon-[ic--outline-log-out] text-sm"></i>
+                        <span class="text-sm text-center">
+                            Cerrar sesión
+                        </span>
+                    </LogoutButton>
+                </div>
+            </div>
+        )}
+        { !user &&
+        <div class="flex md:hidden">
+            <button
+                id="hamburger"
+                class="p-5 cursor-pointer mx-2 rounded-lg hover:bg-gray-500/10 transition-all flex flex-col min-w-10 justify-center items-center gap-1"
+                aria-label="Botó del menú mòbil"
+            >
+                <span class="hamburger-line top-1/2"></span>
+                <span class="hamburger-line top-1/2"></span>
+                <span class="hamburger-line top-1/2"></span>
+            </button>
+        </div>
+        }
+    </div>
+</header>
+
+{ !user &&
+    <aside
+        id="aside"
+        class="fixed md:hidden hidden top-0 left-0 z-9998
+                bg-white backdrop-blur-xl w-full h-dvh
+                animate-fade-in animate-duration-300"
+    >
+        <div
+            class="absolute inset-x-4 top-24 bottom-6
+                rounded-2xl
+                flex md:hidden flex-col items-center justify-center gap-4
+                p-6"
+        >
+            { !isLogin ? (
+                <div class="flex flex-col items-stretch gap-3 w-full max-w-xs">
+                    <a
+                        href="/auth/login"
+                        class="flex md:hidden items-center justify-center gap-2
+                                text-base font-medium
+                                rounded-xl px-4 py-3
+                                bg-gray-500/10 hover:bg-gray-500/15
+                                text-black/80 transition-all"
+                    >
+                        <i class="icon-[lucide--lock]" />
+                        Acceso restringido
+                    </a>
+
+                    {isPedido && (
+                    <a
+                        href="/"
+                        class="flex items-center justify-center
+                            text-base font-medium
+                            rounded-xl px-4 py-3
+                            bg-gray-500/10 hover:bg-gray-500/15
+                            text-black/80 transition"
+                    >
+                        Volver a inicio
+                    </a>
+                    )}
+                </div>
+            ) : (
+                <a
+                    href="/"
+                    class="flex items-center justify-center
+                        text-base font-medium
+                        rounded-xl px-4 py-3
+                        bg-gray-500/10 hover:bg-gray-500/15
+                        text-black/80 transition"
+                >
+                    Volver a inicio
+                </a>
+            )}
+        </div>
+    </aside>
+}
+
+{ user ? (
+    <script is:inline>
+        document.addEventListener('astro:page-load', () => {
+            const profileButton = document.getElementById('profile-button');
+            const profileConfigContainer = document.getElementById('profile-config-container');
+
+            if(!profileButton || !profileConfigContainer) return;
+
+            let profileMenuIsOpen = false;
+            profileButton.addEventListener("click", (e) => {
+                e.stopPropagation();
+                toggleProfileMenu();
+            });
+
+            document.addEventListener("click", (e) => {
+                if (
+                    profileMenuIsOpen &&
+                    !profileButton.contains(e.target) &&
+                    !profileConfigContainer.contains(e.target)
+                ) {
+                    closeProfileMenu();
+                }
+            });
+
+            function toggleProfileMenu() {
+                profileMenuIsOpen = !profileMenuIsOpen;
+
+                if (profileMenuIsOpen) {
+                    openProfileMenu();
+                } else {
+                    closeProfileMenu();
+                }
+            }
+
+            function openProfileMenu() {
+                profileButton.classList.add("bg-gray-200/60");
+                profileConfigContainer.classList.remove("hidden");
+                profileConfigContainer.classList.add(
+                    "animate-fade-in-down",
+                    "animate-duration-300"
+                );
+            }
+
+            function closeProfileMenu() {
+                profileMenuIsOpen = false;
+                profileButton.classList.remove("bg-gray-200/60");
+                profileConfigContainer.classList.add("hidden");
+                profileConfigContainer.classList.remove(
+                    "animate-fade-in-down",
+                    "animate-duration-300"
+                );
+            }
+
+        });
+    </script>
+) : (
+    <script is:inline>
+        document.addEventListener('astro:page-load', () => {
+            const hamburger = document.getElementById('hamburger');
+            const $aside = document.querySelector('aside#aside');
+            const $header = document.getElementById('header');
+            const $html = document.documentElement;
+
+            if(!hamburger || !$aside || !$header) return;
+
+            let hamburgerMenuIsOpen = false;
+
+            hamburger.addEventListener("click", (e) => {
+                e.stopPropagation();
+                hamburgerMenuIsOpen = !hamburgerMenuIsOpen;
+                hamburger.classList.toggle('open', hamburgerMenuIsOpen);
+                hamburger.classList.toggle('bg-gray-500/10', hamburgerMenuIsOpen);
+                $header.classList.toggle('bg-white', hamburgerMenuIsOpen);
+                if (hamburgerMenuIsOpen) {
+                    $aside.classList.remove("hidden");
+                    $header.classList.remove("bg-whtee/15");
+                    $html.classList.add("overflow-hidden");
+                } else {
+                    $header.classList.add("bg-whtee/15");
+                    $aside.classList.add("hidden");
+                    $html.classList.remove("overflow-hidden");
+                }
+            });
+
+            document.addEventListener("click", (e) => {
+                if (
+                    hamburgerMenuIsOpen &&
+                    !hamburger.contains(e.target) &&
+                    !$aside.contains(e.target)
+                ) {
+                    hamburgerMenuIsOpen = false;
+                    $aside.classList.add("hidden");
+                }
+            });
+        });
+    </script>
+)
+}
+
+<style is:global>
+    header#header {
+        animation: header 0.3s linear both;
+        animation-timeline: scroll();
+        animation-range: 0 70px;
+        box-shadow: transparent;
+    }
+
+    @keyframes header {
+        0% {
+            box-shadow: transparent;
+        }
+        100% {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.15);
+        }
+    }
+</style>
+
+<style>
+    .hamburger-line {
+        position: absolute;
+        width: 24px;
+        height: 2px;
+        background: black;
+        border-radius: 999px;
+        transition: transform 0.3s ease, opacity 0.2s ease;
+    }
+
+    /* Estado cerrado */
+    .hamburger-line:nth-child(1) {
+        transform: translateY(-6px);
+    }
+    .hamburger-line:nth-child(3) {
+        transform: translateY(6px);
+    }
+
+    /* Estado abierto */
+    #hamburger.open .hamburger-line:nth-child(1) {
+        transform: rotate(45deg);
+    }
+
+    #hamburger.open .hamburger-line:nth-child(2) {
+        opacity: 0;
+    }
+
+    #hamburger.open .hamburger-line:nth-child(3) {
+        transform: rotate(-45deg);
+    }
+
+</style>

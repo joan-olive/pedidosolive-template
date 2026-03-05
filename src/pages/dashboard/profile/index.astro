@@ -1,0 +1,123 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+
+const user = Astro.locals.user;
+---
+
+<Layout title="Configuración de perfil">
+    <div id="success-alert" class="hidden animate-fade-in-down w-full max-w-96 bg-green-100 z-10000 p-3 justify-center items-center text-green-500 rounded-lg fixed top-2 left-1/2 -translate-x-1/2 gap-2">
+        <span id="success-text"></span>
+        <i class="icon-[simple-line-icons--check]" />
+    </div>
+
+    <div class="w-full flex justify-center items-center flex-col">
+        <div class="w-full flex justify-center items-center flex-col py-10">
+            <div class="flex flex-col justify-center items-center gap-1">
+                {
+                    user && (
+                        <div
+                            id="profile-avatar"
+                            class="size-20
+                        rounded-full
+                        bg-[#013485]/10
+                        flex flex-row items-center justify-center
+                        font-semibold
+                        text-[#013485]
+                        text-3xl
+                        uppercase
+                        gap-px"
+                        >
+                            <span>{user.name?.charAt(0)}</span>
+                            <span>{user.surname?.charAt(0)}</span>
+                        </div>
+
+                        <div class="flex flex-row justify-center items-center flex-wrap gap-2 text-xl text-[#013485]">
+                            <span>
+                                {user.name}
+                            </span>
+                            <span>
+                                {user.surname}
+                            </span>
+                        </div>
+                        <div class="flex justify-center items-center relative group cursor-default" id="copy_email">
+                            <span class="text-black/50" id="email">
+                                {user.email}
+                            </span>
+
+                            <div class="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-9000">
+                                <span
+                                    class="px-3 py-2 bg-black/80 backdrop-blur-2xl text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+                                >
+                                    Copiar
+                                </span>
+                            </div>
+                        </div>
+                    )
+                }
+            </div>
+        </div>
+        <div
+            class="flex flex-col justify-center items-center w-full md:max-w-xl gap-2"
+        >
+            <a
+                onclick="return false;"
+                href={`/dashboard/profile/avatar?id=${user?.id}`}
+                class="px-4 py-3 bg-transparent hover:bg-gray-200 rounded-md transition-colors shadow-md shadow-black/15 min-w-60 text-center flex flex-row justify-center items-center gap-3 cursor-not-allowed hover:opacity-80 hover:text-black/50"
+            >
+                Cambiar avatar del perfil
+                <i class="icon-[akar-icons--image] text-lg text-black/60"></i>
+            </a>
+
+            <a
+                href={`/dashboard/profile/password?id=${user?.id}`}
+                class="px-4 py-3 bg-transparent hover:bg-gray-200 rounded-md transition-colors shadow-md shadow-black/15 min-w-60 text-center flex justify-center items-center flex-row gap-3"
+            >
+                Cambiar la contraseña
+                <i
+                    class="icon-[material-symbols--password] text-lg text-black/60"
+                ></i>
+            </a>
+
+            <a
+                href="/dashboard"
+                class="mt-10 opacity-70 hover:opacity-100 transition-all px-4 py-3 rounded-md flex flex-row gap-1 justify-center items-center hover:-translate-y-px group text-center"
+            >
+                <i
+                    class="icon-[line-md--chevron-left] group-hover:opacity-100 opacity-0 transition-all translate-x-0.5 group-hover:-translate-x-0.5 pointer-events-none"
+                ></i>
+                Volver a los pedidos
+            </a>
+        </div>
+    </div>
+</Layout>
+
+
+<script is:inline>
+    document.addEventListener('astro:page-load', () => {
+        const emailElement = document.getElementById('email');
+        const copyEmailContainer = document.getElementById('copy_email');
+
+        copyEmailContainer.addEventListener('click', () => {
+            const email = emailElement.textContent;
+            navigator.clipboard.writeText(email).then(() => {
+                const successAlert = document.getElementById('success-alert');
+                const successText = document.getElementById('success-text');
+                successText.textContent = 'Correo electrónico copiado al portapapeles';
+                successAlert.classList.remove('hidden');
+                successAlert.classList.add('flex');
+                setTimeout(() => {
+
+                    successAlert.classList.add('animate-fade-out-up');
+                    setTimeout(() => {
+                        successAlert.classList.add('hidden');
+                        successAlert.classList.remove('flex');
+                        successAlert.classList.remove('animate-fade-out-up');
+                        successText.textContent = '';
+                    }, 600);
+                }, 2000);
+            }).catch(err => {
+                console.error('Error al copiar al portapapeles: ', err);
+            });
+        });
+    });
+</script>

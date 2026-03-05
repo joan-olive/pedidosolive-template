@@ -1,0 +1,132 @@
+---
+import { getSupabaseServerClient } from "../lib/supabase";
+
+const supabase = getSupabaseServerClient(Astro);
+
+const { data: orders, error } = await supabase
+    .from("orders")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+if (error) {
+    console.error(error);
+}
+
+const archivedOrders = orders?.filter((order) => order.is_archieve) ?? [];
+
+function getOrdersStage(stage: string) {
+    switch (stage) {
+        case "PENDING":
+            return { label: "Pendiente", color: "text-yellow-500" };
+        case "FINISHED":
+            return { label: "Completada", color: "text-green-500" };
+        case "CURRENT":
+            return { label: "En proceso", color: "text-blue-500" };
+        default:
+            return { label: "Desconocida", color: "text-gray-500" };
+    }
+}
+---
+
+<div class="w-full flex flex-col gap-4">
+    {
+        archivedOrders.length === 0 && (
+            <div class="w-full bg-white border border-gray-200 rounded-xl px-10 py-16 flex flex-col items-center justify-center text-center shadow-sm animate-fade-in">
+                <div class="w-14 h-14 flex items-center justify-center rounded-full bg-gray-100 mb-4">
+                    <i class="icon-[mdi--archive-outline] text-2xl text-gray-400" />
+                </div>
+
+                <h3 class="text-lg font-semibold text-gray-800">
+                    No hay pedidos archivados
+                </h3>
+
+                <p class="text-sm text-gray-500 mt-2 max-w-sm">
+                    Cuando archives un pedido aparecerá aquí.
+                </p>
+            </div>
+        )
+    }
+
+    {
+        archivedOrders.map((order) => {
+            const stage = getOrdersStage(order.stage);
+
+            return (
+                <article class="order-card w-full bg-white border border-gray-200 rounded-xl px-6 py-4 flex flex-col md:flex-row items-start md:gap-0 gap-2 md:items-center justify-between shadow-sm hover:shadow-md transition-all duration-200">
+                    <div class="flex flex-row justify-between items-start w-full">
+                        <div class="flex flex-col">
+                            <span class="text-base font-semibold text-gray-800">
+                                {order.company_name}
+                            </span>
+                            <span class="text-xs text-gray-400">
+                                {new Date(order.created_at).toLocaleDateString(
+                                    "es-ES",
+                                    {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        year: "numeric",
+                                    },
+                                )}
+                            </span>
+                        </div>
+                        <div>
+                            <span
+                                class={`flex justify-center items-center md:hidden ml-auto px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 ${stage.color}`}
+                            >
+                                {stage.label}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-6">
+                        <div class="flex gap-2">
+                            <a
+                                href={`/dashboard/editar-pedido?card=${order.id}`}
+                                class="px-4 py-1.5 text-sm font-medium rounded-lg border border-blue-500 text-blue-600 hover:bg-blue-500 hover:text-white transition-all duration-200"
+                            >
+                                Editar
+                            </a>
+
+                            <form action="/api/eliminar-pedido" method="POST">
+                                <input
+                                    type="hidden"
+                                    name="id"
+                                    value={order.id}
+                                />
+                                <button
+                                    type="submit"
+                                    class="cursor-pointer px-4 py-1.5 text-sm font-medium rounded-lg border border-red-500 text-red-600 hover:bg-red-500 hover:text-white transition-all duration-200"
+                                >
+                                    Eliminar
+                                </button>
+                            </form>
+
+                            <form
+                                action="/api/desarchivar-pedido"
+                                method="POST"
+                            >
+                                <input
+                                    type="hidden"
+                                    name="id"
+                                    value={order.id}
+                                />
+                                <button
+                                    type="submit"
+                                    class="cursor-pointer px-4 py-1.5 text-sm font-medium rounded-lg border border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white transition-all duration-200"
+                                >
+                                    Desarchivar
+                                </button>
+                            </form>
+                        </div>
+
+                        <span
+                            class={`hidden md:flex px-3 py-1 text-xs font-semibold rounded-full bg-gray-100 ${stage.color}`}
+                        >
+                            {stage.label}
+                        </span>
+                    </div>
+                </article>
+            );
+        })
+    }
+</div>

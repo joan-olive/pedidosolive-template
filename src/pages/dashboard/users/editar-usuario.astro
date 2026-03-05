@@ -1,0 +1,312 @@
+---
+import DashBoardLayout from "../../../layouts/dashboard/DashBoardLayout.astro";
+import { getSupabaseServerClient } from "../../../lib/supabase";
+
+const id = Astro.url.searchParams.get("id");
+const supabase = getSupabaseServerClient(Astro);
+const user = Astro.locals.user;
+
+const { data, error } = await supabase.rpc(
+    "get_profile_with_email_by_id",
+    { p_id: id }
+);
+
+const usuario = data?.[0];
+
+
+if (error || !usuario) {
+    return Astro.redirect("/dashboard/users");
+}
+
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+let success = false;
+let officeUser = null;
+let errorMessage = "";
+let fieldErrors = {
+    name: false,
+    surname: false,
+    second_surname: false,
+    email: false,
+};
+
+if (Astro.request.method === "POST") {
+    const formData = await Astro.request.formData();
+
+    const name = formData.get("name")?.toString().trim() ?? "";
+    const surname = formData.get("surname")?.toString().trim() ?? "";
+    const second_surname = formData.get("second_surname")?.toString().trim() ?? "";
+
+    // VALIDACION
+    if (!name) fieldErrors.name = true;
+    if (!surname) fieldErrors.surname = true;
+    
+    const errorCount = Object.values(fieldErrors).filter(Boolean).length;
+
+    if (!errorMessage) {
+        if (errorCount === Object.keys(fieldErrors).length) {
+            errorMessage = "Todos los campos son obligatorios";
+        } else if (errorCount > 0) {
+            errorMessage = "Hay campos obligatorios sin rellenar";
+        }
+    }
+
+    if (!errorMessage) {
+        const { error: error } = await supabase
+            .from("profiles")
+            .update({
+                name,
+                surname,
+                second_surname,
+            })
+            .eq("id", id);
+
+        if (!error) {
+            success = true;
+        } else {
+            console.error(error);
+            errorMessage = "Error al actualizar el usuario";
+        }
+    }
+}
+---
+
+<DashBoardLayout title="Editar usuario">
+    <div
+        class="w-full flex pt-12 md:pt-8 flex-col items-center justify-center md:px-4 bg-gray-50 pb-20"
+    >
+        <header
+            class="flex flex-col gap-3 mb-7 w-full md:w-5xl mx-auto"
+        >
+            <h1
+                class="text-4xl font-semibold tracking-wide text-gray-900 uppercase animate-fade-in"
+            >
+                Edidar pedido registrado
+            </h1>
+            <p
+                class="text-gray-600 text-base max-w-3xl leading-relaxed animate-fade-in animate-delay-100"
+            >
+                Editar el pedido seleccionado, registrado en la agenda
+            </p>
+        </header>
+        <div class="w-full md:max-w-2xl mx-auto">
+            {
+                success && (
+                    <div class="w-full flex justify-center items-center">
+                        <div class="rounded-lg p-6 flex flex-col justify-center items-center gap-4 animate-fade-in">
+                            <i class="icon-[pajamas--check-circle] text-green-500 text-4xl" />
+                            <h3 class="text-green-700 text-lg font-medium">
+                                ¡Usuario actualizado con éxito!
+                            </h3>
+                            <p class="text-green-700/60 text-center max-w-md">
+                                El usuario <b>{usuario.id}</b> ha sido actualizado con éxito.
+                            </p>
+                        </div>
+                    </div>
+                )
+            }
+            {
+                errorMessage && (
+                    <div class="w-full flex flex-row justify-center items-center pt-2 pb-6 animate-fade-in">
+                        <div class="bg-red-500/20 flex-1 h-px" />
+                        <span class="text-red-500 text-center text-sm flex justify-center items-center gap-1 px-3">
+                            <i class="icon-[pajamas--error]" />
+                            {errorMessage}
+                        </span>
+                        <div class="bg-red-500/20 flex-1 h-px" />
+                    </div>
+                )
+            }
+            <form
+                id="editar-usuario-form"
+                class="bg-white rounded-xl shadow-lg border border-black/10 md:p-6 p-4 space-y-6 animate-fade-in-up"
+                method="POST"
+            >
+                <div class="flex justify-between items-start">
+                    <h2 class="text-lg font-semibold text-gray-900 uppercase">
+                        Datos de usuario
+                        <span class="block text-black/50 font-normal text-sm">
+                            {usuario.id}
+                        </span>
+                    </h2>
+                </div>
+                <div class="w-full flex justify-center items-center">
+                    <div
+                        class="w-full h-px bg-black/15 rounded-full origin-center animate-width"
+                    >
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label
+                            class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                            for="company_name"
+                        >
+                            Nombre
+                        </label>
+                        <input
+                            type="text"
+                            value={usuario.name}
+                            name="name"
+                            class="original w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm edit-form-input"
+                        />
+                    </div>
+
+                    <div class="flex flex-col md:grid md:grid-cols-2 gap-3">
+                        <div>
+                            <label
+                                class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                                for="contact_name"
+                            >
+                                Primer apellido
+                            </label>
+                            <input
+                                type="text"
+                                value={usuario.surname}
+                                name="surname"
+                                class="original w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm edit-form-input"
+                            />
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                                for="contact_surname"
+                            >
+                                Segundo apellido
+                            </label>
+                            <input
+                                type="text"
+                                value={usuario.second_surname}
+                                name="second_surname"
+                                class="original w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm edit-form-input"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label
+                            class="block text-xs font-semibold uppercase text-gray-500 mb-1"
+                            for="contact_email"
+                        >
+                            Email
+                        </label>
+                        <input
+                            type="text"
+                            value={usuario.email}
+                            disabled
+                            class="cursor-not-allowed opacity-60 original w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm edit-form-input peer"
+                        />
+                        <span class="text-[12px] text-red-500 italic md:peer-hover:animate-zoom-in md:opacity-0 md:transition-opacity">
+                            El correo electrónico no se puede cambiar, contacta con la empresa para cambiarlo.
+                        </span>
+                    </div>
+                </div>
+
+                <div
+                    class="flex flex-col md:flex-row justify-start w-full md:justify-between items-center gap-2"
+                >
+                    <span
+                        class="text-sm flex flex-row justify-center items-center gap-1"
+                    >
+                        <span
+                            class="hidden md:flex px-4 py-1 rounded-full bg-blue-900 text-white"
+                        >
+                            Fecha de creación:
+                        </span>
+                        <span class="flex md:hidden"> Creado: </span>
+                        {
+                            new Date(usuario.created_at).toLocaleDateString(
+                                "es-ES",
+                                {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    year: "numeric",
+                                },
+                            )
+                        }
+                    </span>
+                    <button
+                        title="No hay cambios"
+                        disabled
+                        id="saveButton"
+                        type="submit"
+                        class="cursor-not-allowed opacity-50 md:w-auto w-full px-4 md:py-2 py-3 rounded-lg bg-[#013485] hover:bg-[#012b6d] text-white text-sm font-medium transition-all"
+                    >
+                        Guardar cambios
+                    </button>
+                </div>
+            </form>
+
+            <div
+                class="flex flex-col-reverse md:gap-0 py-3 gap-8 md:flex-row justify-between mt-7 md:mt-3 items-center"
+            >
+                <a
+                    href="/dashboard/users"
+                    class="text-black/60 transition-all group flex flex-row justify-center items-center gap-1"
+                >
+                    <i
+                        class="icon-[line-md--chevron-left] text-sm transition-transform group-hover:-translate-x-1"
+                    ></i>
+                    <span class="text-base"> Lista de todos usuarios </span>
+                </a>
+            </div>
+        </div>
+    </div>
+</DashBoardLayout>
+
+<script is:inline>
+    document.addEventListener("astro:page-load", () => {
+        const form = document.getElementById("editar-usuario-form");
+        const saveButton = document.getElementById("saveButton");
+
+        if (!form || !saveButton) return;
+
+        const fields = Array.from(
+            form.querySelectorAll("input.original, textarea.original"),
+        );
+        const initialValues = new Map();
+        fields.forEach((field) => {
+            initialValues.set(field.name, field.value);
+        });
+
+        const hasChanges = () => {
+            return fields.some(
+                (field) => initialValues.get(field.name) !== field.value,
+            );
+        };
+
+        const updateButtonState = () => {
+            if (hasChanges()) {
+                saveButton.disabled = false;
+                saveButton.classList.remove(
+                    "cursor-not-allowed",
+                    "bg-[#013485]/50",
+                    "opacity-50",
+                );
+                saveButton.classList.add("bg-[#013485]", "cursor-pointer");
+            } else {
+                saveButton.disabled = true;
+                saveButton.classList.add(
+                    "cursor-not-allowed",
+                    "bg-[#013485]/50",
+                    "opacity-50",
+                );
+                saveButton.classList.remove("bg-[#013485]", "cursor-pointer");
+            }
+        };
+
+        fields.forEach((field) => {
+            field.addEventListener("input", updateButtonState);
+            field.addEventListener("change", updateButtonState);
+        });
+    });
+</script>
+
+<style>
+    .edit-form-input:focus {
+        outline: none;
+        border-color: #01348580;
+        box-shadow: 0 0 0 2px rgba(1, 52, 133, 0.15);
+        transition: all 0.2s ease-in-out;
+    }
+</style>
