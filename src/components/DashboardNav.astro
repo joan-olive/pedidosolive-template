@@ -2,9 +2,9 @@
 const path = Astro.url.pathname;
 const base_URL = "/dashboard";
 const LINKS = [
-    { name: "Pedidos", href: `${base_URL}` },
-    { name: "Archivo de pedidos", href: `${base_URL}/archivo-pedidos` },
-    { name: "Agregar pedido", href: `${base_URL}/agregar-pedido` },
+    { complex_name: "Pedidos", simple_name: "Pedidos", href: `${base_URL}` },
+    { complex_name: "Archivo de pedidos", simple_name: "Archivo",  href: `${base_URL}/archivo-pedidos` },
+    { complex_name: "Agregar pedido", simple_name: "Agregar", href: `${base_URL}/agregar-pedido` },
 ];
 const USER_LINKS = [
     { name: "Usuarios", href: `${base_URL}/users` },
@@ -30,7 +30,13 @@ const USER_LINKS = [
                               href={link.href}
                               class={`relative text-sm text-center md:text-left font-medium rounded-md transition-all uppercase hover:bg-gray-500/10 p-2 ${isActive ? "text-blue-500" : "text-black"}`}
                           >
-                              {link.name}
+                              <span class="hidden md:flex">
+                                {link.complex_name}
+                              </span>
+
+                              <span class="flex md:hidden">
+                                {link.simple_name}
+                              </span>
 
                               {isActive && (
                                   <div
